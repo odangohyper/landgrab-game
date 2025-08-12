@@ -27,7 +27,7 @@ export interface GameState {
   matchId: string;
   turn: number;
   players: PlayerState[];
-  phase: 'DRAW' | 'ACTION' | 'RESOLUTION';
+  phase: 'DRAW' | 'ACTION' | 'RESOLUTION' | 'GAME_OVER';
 }
 
 export interface Action {
