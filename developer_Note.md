@@ -78,3 +78,28 @@
     *   `engine.ts`ファイルを正しい内容で完全に上書きすることで、重複したメソッド定義と誤ったネストを解消し、エラーを解決しました。
 
 これらの修正により、GitHub ActionsのCIワークフローが正常に動作し、フロントエンドのテストが自動で実行されるようになりました。
+
+## 追記：フェーズ2以降の追加タスク進捗報告 (続き)
+
+### 16. デッキ構築UIの実装 (フロントエンド) - 完了
+
+*   `packages/web-game-client/src/components/DeckBuilder.tsx`を作成し、利用可能なカードの表示、デッキへの追加・削除機能を持つ基本的なUIを実装しました。
+*   `packages/web-game-client/src/components/GameView.tsx`を作成し、既存のゲームUIロジックを`App.tsx`から分離しました。
+*   `packages/web-game-client/src/App.tsx`を修正し、`GameView`と`DeckBuilder`コンポーネントを切り替えられるナビゲーション（ボタン）を追加しました。
+
+### 17. カード画像表示の統合 (HandViewなど) - 完了
+
+*   `packages/web-game-client/src/components/HandView.tsx`および`packages/web-game-client/src/components/DeckBuilder.tsx`を修正し、カードの`templateId`に対応する画像（`public/images/cards/`配下）を表示するようにしました。
+*   `packages/web-game-client/src/components/GameView.tsx`を修正し、Firebase Realtime Databaseから`CardTemplate`データを`fetchCardTemplates`で取得し、`HandView`に渡すようにしました。
+*   **Firebase Realtime Databaseへのデータ投入**: `CARD_TEMPLATES`のJSONデータをFirebase Realtime Databaseの`/cards/v1/templates`パスに手動で投入しました。
+*   **初期手札表示の修正**: アプリ起動時に「Your Hand: No cards in hand.」と表示される問題を解決しました。`GameView.tsx`の初期化ロジックを修正し、初期ゲーム状態をDBに書き込む前に`GameEngine.advanceTurn()`を呼び出すことで、プレイヤーが初期手札を持つようにしました。
+*   **画像ファイル名の修正**: `templateId`と画像ファイル名が一致していなかった問題を、ユーザーに画像ファイル名を`templateId`に合わせて変更していただくことで解決しました。
+
+### 解決済みの主要な問題 (続き)
+
+*   **Firebaseデータ上書き問題**: `cards`データをインポートした際に既存の`matches`データが消滅する問題が発生しましたが、これはインポート方法の誤り（ルートでの上書き）が原因でした。`matches`データが動的に再生成されることを利用し、`cards`データを再インポートし、フロントエンドアプリを再起動することで共存状態を確立しました。
+*   **カード画像が表示されない問題**: 画像ファイル名が`templateId`と一致していなかったため、画像が表示されませんでした。ユーザーに画像ファイル名を`templateId`に合わせて変更していただくことで解決しました。
+*   **初期手札表示の修正**: アプリ起動時に「Your Hand: No cards in hand.」と表示される問題を解決しました。`GameView.tsx`の初期化ロジックを修正し、初期ゲーム状態をDBに書き込む前に`GameEngine.advanceTurn()`を呼び出すことで、プレイヤーが初期手札を持つようにしました。
+
+---
+以上、ここまでの開発進捗と主要な問題解決に関する報告です。

@@ -30,3 +30,4 @@
 | 19. デッキ管理APIの実装 (バックエンド) | 未 | GEMINIAI |
 | 20. サーバーサイドゲームロジックの骨組み構築 (FastAPI) | 未 | GEMINIAI |
 | 21. GitHub Actions CIワークフローの構築 | 済 | GEMINIAI |
+| 22. GitHub Actions CIワークフローで実施するテストカバレージの最適化 | 未 | GEMINIAI |
