@@ -26,8 +26,15 @@
 | **フェーズ2以降の追加タスク** | | |
 | 16. デッキ構築UIの実装 (フロントエンド) | 済 | GEMINIAI |
 | 17. カード画像表示の統合 (HandViewなど) | 済 | GEMINIAI |
-| 18. Phaserでのゲーム要素描画 (プレイヤー、不動産、場札) | 未 | GEMINIAI |
-| 19. デッキ管理APIの実装 (バックエンド) | 未 | GEMINIAI |
-| 20. サーバーサイドゲームロジックの骨組み構築 (FastAPI) | 未 | GEMINIAI |
+| 18. Phaserでのゲーム要素描画 (プレイヤー、不動産、場札) | 済 | GEMINIAI |
+| 19. デッキ管理APIの実装 (バックエンド) | 済 | GEMINIAI |
+| 20. サーバーサイドゲームロジックの骨組み構築 (FastAPI) | 済 | GEMINIAI |
 | 21. GitHub Actions CIワークフローの構築 | 済 | GEMINIAI |
-| 22. GitHub Actions CIワークフローで実施するテストカバレージの最適化 | 未 | GEMINIAI |
+| 22. GitHub Actions CIワークフローで実施するテストカバレージの最適化 | 済 | GEMINIAI |
+
+| **フェーズ3以降のタスク** | | |
+| 23. サーバーサイドゲームエンジンのロジック実装 | 未 | GEMINIAI |
+| 24. デッキ管理APIのデータベース接続 (Firebase) | 未 | GEMINIAI |
+| 25. デッキ構築UIとAPIの統合 | 未 | GEMINIAI |
+| 26. NPC AIの改善 (重み付け行動型) | 未 | GEMINIAI |
+| 27. UI/UXとPhaserアニメーションの洗練 | 未 | GEMINIAI |
