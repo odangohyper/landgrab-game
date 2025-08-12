@@ -1,0 +1,26 @@
+{
+  "name": "landgrab-game",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/odangohyper/landgrab-game.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/odangohyper/landgrab-game/issues"
+  },
+  "homepage": "https://github.com/odangohyper/landgrab-game#readme"
+}
