@@ -30,14 +30,11 @@ jobs:
       with:
         python-version: '3.10' # Use a compatible Python version
 
-    - name: Install pnpm (if not already installed)
-      run: npm install -g pnpm # Install pnpm globally for workspace management
-
     - name: Install root dependencies
-      run: pnpm install # Install root dependencies and link workspaces
+      run: npm install # Install root dependencies and link workspaces
 
     - name: Run frontend tests
-      run: pnpm test --workspace web-game-client # Run tests for the web-game-client package
+      run: npm test --workspace web-game-client # Run tests for the web-game-client package
 
     # Future steps:
     # - name: Run frontend lint
