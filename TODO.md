@@ -10,9 +10,9 @@
 | 5. Hand UI (Reactコンポーネント) の実装 | 済 | GEMINIAI |
 | **優先度B（順次）** | | |
 | 6. Realtime Database ラッパーの実装 | 済 | GEMINIAI |
-| 7. NPC AI (重み付け) の実装 | 未 | GEMINIAI |
-| 8. Phaser 統合 (ゲーム画面描画) | 未 | GEMINIAI |
+| 7. NPC AI (重み付け) の実装 | 済 | GEMINIAI |
+| 8. Phaser 統合 (ゲーム画面描画) | 済 | GEMINIAI |
 | **確認事項・提供物** | | |
 | 9. Firebase 開発プロジェクトの情報提供 | 済 | GEMINIユーザ |
-| 10. カード画像のアセット供給 (なければ仮作成) | 未 | GEMINIユーザ |
-| 11. 相打ち時の勝利条件など詳細なルール定義 | 未 | GEMINIユーザ |
+| 10. カード画像のアセット供給 (なければ仮作成) | 済 | GEMINIユーザ |
+| 11. 相打ち時の勝利条件など詳細なルール定義 | 済 | GEMINIユーザ |

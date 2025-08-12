@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { GameEngine } from './game/engine';
 import { GameState, PlayerState, Card } from './types';
 import HandView from './components/HandView';
+import { launch } from './game/PhaserGame'; // Import launch function
 import './App.css'; // Keep basic styling
 
 function App() {
@@ -35,6 +36,13 @@ function App() {
       setGameState({ ...initialGameState, players: updatedPlayers });
     }
 
+    // Launch Phaser game
+    const game = launch('phaser-game-container');
+    return () => {
+      // Clean up Phaser game when component unmounts
+      game.destroy(true);
+    };
+
   }, []);
 
   if (!gameState) {
@@ -60,6 +68,9 @@ function App() {
       )}
 
       <HandView hand={playerHand} />
+
+      {/* Phaser game container */}
+      <div id="phaser-game-container" style={{ width: '800px', height: '600px', margin: '20px auto', border: '1px solid white' }}></div>
 
       {/* Add game controls and other UI elements here */}
     </div>
