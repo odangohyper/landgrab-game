@@ -46,17 +46,18 @@ describe('GameEngine', () => {
   });
 
   it('should correctly apply actions and resolve a simple turn', () => {
-    // Setup: Give players specific cards and enough funds
-    const player1 = engine.getState().players.find(p => p.playerId === 'player1-id')!;
+    // Setup: Create a specific state for this test
+    const testState = JSON.parse(JSON.stringify(initialState)); // Deep copy
+    const player1 = testState.players.find(p => p.playerId === 'player1-id')!;
     player1.hand = [{ id: 'p1card', templateId: 'ACQUIRE' }];
     player1.funds = 3;
 
-    const player2 = engine.getState().players.find(p => p.playerId === 'player2-id')!;
+    const player2 = testState.players.find(p => p.playerId === 'player2-id')!;
     player2.hand = [{ id: 'p2card', templateId: 'GAIN_FUNDS' }];
     player2.funds = 1;
 
-    // Create a new engine with this modified state to ensure clean test
-    const testEngine = new GameEngine(engine.getState(), mockCardTemplates);
+    // Create a new engine with the modified state
+    const testEngine = new GameEngine(testState, mockCardTemplates);
 
     const player1Action: Action = { playerId: 'player1-id', cardId: 'p1card' };
     const player2Action: Action = { playerId: 'player2-id', cardId: 'p2card' };
