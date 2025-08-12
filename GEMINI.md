@@ -453,3 +453,5 @@ Permission is hereby granted, free of charge, to any person obtaining a copy...
 
 GEMINIAIは、コードの読み書き・更新を担当します。
 GEMINIユーザは、その内容をレビューし、Git操作やそのたパッケージのインストールを行います
+
+また、開発は、Win11の環境で行います
