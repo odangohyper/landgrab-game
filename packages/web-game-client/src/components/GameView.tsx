@@ -2,28 +2,30 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GameEngine } from '../game/engine';
-import { GameState, PlayerState, Card, Action } from '../types';
+import { GameState, PlayerState, Card, Action, CardTemplate } from '../types';
 import HandView from './HandView';
 import { launch } from '../game/PhaserGame';
 import { createMatch, putAction, watchActions, writeState, watchGameState, fetchCardTemplates } from '../api/realtimeClient';
 import { NullAuthAdapter } from '../auth/NullAuthAdapter';
-import { database } from '../firebaseConfig'; // Import database for set(ref(...))
-import { ref, set } from 'firebase/database'; // Import ref and set for clearing actions
+import { database } from '../firebaseConfig';
+import { ref, set } from 'firebase/database';
+import Phaser from 'phaser';
 
 interface GameViewProps {
   // Props will be added later if needed, e.g., onGameEnd
 }
 
 const GameView: React.FC<GameViewProps> = () => {
-  const [gameEngine, setGameEngine] = useState<GameEngine | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [opponentId, setOpponentId] = useState<string | null>(null);
-  const [cardTemplates, setCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({}); // New state for card templates
+  const [cardTemplates, setCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({});
 
   const engineRef = useRef<GameEngine | null>(null);
+  const gameRef = useRef<Phaser.Game | null>(null); // Ref to hold the Phaser game instance
+  const isResolvingTurnRef = useRef(false); // Mutex to prevent double resolution
 
   useEffect(() => {
     const authAdapter = new NullAuthAdapter();
@@ -34,8 +36,7 @@ const GameView: React.FC<GameViewProps> = () => {
     setOpponentId(npcId);
 
     const setupMatch = async () => {
-      // Fetch card templates first
-      const fetchedCardTemplates = await fetchCardTemplates('v1'); // Assuming 'v1' version
+      const fetchedCardTemplates = await fetchCardTemplates('v1');
       setCardTemplates(fetchedCardTemplates);
 
       let currentMatchId = localStorage.getItem('currentMatchId');
@@ -45,49 +46,79 @@ const GameView: React.FC<GameViewProps> = () => {
       }
       setMatchId(currentMatchId);
 
-      if (!engineRef.current) {
-        const initialGameState = GameEngine.createInitialState(currentClientId, npcId);
-        engineRef.current = new GameEngine(initialGameState);
-        // Advance turn once to draw initial hands
+      if (!engineRef.current && Object.keys(fetchedCardTemplates).length > 0) {
+        const initialGameState = GameEngine.createInitialState(currentClientId, npcId, fetchedCardTemplates);
+        engineRef.current = new GameEngine(initialGameState, fetchedCardTemplates);
         const gameStateWithInitialHand = engineRef.current.advanceTurn();
-        setGameEngine(engineRef.current);
+        // setGameEngine(engineRef.current); // No longer need state for engine
         await writeState(currentMatchId, gameStateWithInitialHand);
       }
 
       const unsubscribeState = watchGameState(currentMatchId, (dbGameState) => {
-        setGameState(dbGameState);
-        const currentPlayerState = dbGameState.players.find((p: PlayerState) => p.playerId === currentClientId);
-        if (currentPlayerState) {
-          setPlayerHand(currentPlayerState.hand);
-        }
-      });
-
-      const unsubscribeActions = watchActions(currentMatchId, async (actions) => {
-        const player1Action = actions[currentClientId];
-        const player2Action = actions[npcId];
-
-        if (player1Action && player2Action) {
-          console.log('Both players submitted actions. Resolving turn...');
+        if (dbGameState) {
+          // When gameState updates from DB, ensure engine is also in sync
           if (engineRef.current) {
-            let newGameState = engineRef.current.advanceTurn();
-            newGameState = engineRef.current.applyAction(player1Action, player2Action);
-            await writeState(currentMatchId, newGameState);
-            await set(ref(database, `matches/${currentMatchId}/actions`), {});
+            engineRef.current = new GameEngine(dbGameState, fetchedCardTemplates);
+          }
+          setGameState(dbGameState);
+          const currentPlayerState = dbGameState.players.find((p: PlayerState) => p.playerId === currentClientId);
+          if (currentPlayerState) {
+            setPlayerHand(currentPlayerState.hand);
           }
         }
       });
 
-      const game = launch('phaser-game-container');
+      const unsubscribeActions = watchActions(currentMatchId, async (actions) => {
+        if (engineRef.current?.getState().phase === 'GAME_OVER' || isResolvingTurnRef.current) return;
+
+        const player1Action = actions[currentClientId];
+        const player2Action = actions[npcId];
+
+        if (player1Action && player2Action) {
+          isResolvingTurnRef.current = true;
+          console.log('Both players submitted actions. Resolving turn...');
+          if (engineRef.current) {
+            // The engine's state is already updated by watchGameState. Now, apply actions.
+            let newGameState = engineRef.current.applyAction(player1Action, player2Action);
+            await writeState(currentMatchId, newGameState);
+            
+            // Now advance to the next turn
+            newGameState = engineRef.current.advanceTurn();
+            await writeState(currentMatchId, newGameState);
+
+            // Clear actions for the next turn
+            await set(ref(database, `matches/${currentMatchId}/actions`), {});
+          }
+          isResolvingTurnRef.current = false;
+        }
+      });
+
+      if (!gameRef.current) {
+        gameRef.current = launch('phaser-game-container');
+      }
 
       return () => {
-        game.destroy(true);
         unsubscribeState();
         unsubscribeActions();
       };
     };
 
     setupMatch();
+    
+    return () => {
+        gameRef.current?.destroy(true);
+        gameRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    if (gameRef.current && gameState && Object.keys(cardTemplates).length > 0 && clientId) {
+      gameRef.current.registry.set('gameState', gameState);
+      gameRef.current.registry.set('cardTemplates', cardTemplates);
+      gameRef.current.registry.set('clientId', clientId);
+    }
+  }, [gameState, cardTemplates, clientId]);
+
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
@@ -96,12 +127,15 @@ const GameView: React.FC<GameViewProps> = () => {
   };
 
   const handlePlayTurn = async () => {
-    if (gameEngine && gameState && matchId && clientId && opponentId) {
+    if (gameState?.phase === 'GAME_OVER') return;
+
+    if (engineRef.current && gameState && matchId && clientId && opponentId) {
       const player1Action: Action | null = selectedCardId ? { playerId: clientId, cardId: selectedCardId } : null;
 
       const npcPlayerState = gameState.players.find(p => p.playerId === opponentId);
       let player2Action: Action | null = null;
       if (npcPlayerState && npcPlayerState.hand.length > 0) {
+        // Simple AI: play a random card
         const randomCard = npcPlayerState.hand[Math.floor(Math.random() * npcPlayerState.hand.length)];
         player2Action = { playerId: opponentId, cardId: randomCard.id };
       }
@@ -121,11 +155,11 @@ const GameView: React.FC<GameViewProps> = () => {
     return <div>Loading game...</div>;
   }
 
-  const currentPlayerState = gameState.players.find(p => p.playerId === 'player1-id');
+  const currentPlayerState = gameState.players.find(p => p.playerId === clientId);
   const playableCardIds: string[] = [];
-  if (currentPlayerState && gameEngine) {
+  if (currentPlayerState && engineRef.current) {
     currentPlayerState.hand.forEach(card => {
-      const cardTemplate = gameEngine.getCardTemplate(card.templateId);
+      const cardTemplate = engineRef.current!.getCardTemplate(card.templateId);
       if (cardTemplate && currentPlayerState.funds >= cardTemplate.cost) {
         playableCardIds.push(card.id);
       }
@@ -138,12 +172,13 @@ const GameView: React.FC<GameViewProps> = () => {
       <div style={{ marginBottom: '20px' }}>
         <p>Turn: {gameState.turn}</p>
         <p>Phase: {gameState.phase}</p>
-        <button onClick={handlePlayTurn} disabled={!selectedCardId}>Play Turn</button>
+        {gameState.phase !== 'GAME_OVER' && <button onClick={handlePlayTurn} disabled={!selectedCardId}>Play Turn</button>}
+         {gameState.phase === 'GAME_OVER' && <h2>Game Over!</h2>}
       </div>
 
       {currentPlayerState && (
         <div style={{ marginBottom: '20px' }}>
-          <h2>Player: {currentPlayerState.playerId}</h2>
+          <h2>Player: You</h2>
           <p>Funds: {currentPlayerState.funds}</p>
           <p>Properties: {currentPlayerState.properties}</p>
         </div>

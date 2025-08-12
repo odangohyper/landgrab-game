@@ -29,9 +29,15 @@ export interface GameState {
   turn: number;
   players: PlayerState[];
   phase: 'DRAW' | 'ACTION' | 'RESOLUTION' | 'GAME_OVER';
+  lastActions?: ResolvedAction[]; // Actions from the resolved turn
 }
 
 export interface Action {
   playerId: string;
   cardId: string; // The ID of the card played
+}
+
+export interface ResolvedAction {
+  playerId: string;
+  cardTemplateId: string;
 }

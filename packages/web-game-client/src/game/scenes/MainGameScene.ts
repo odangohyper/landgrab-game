@@ -1,34 +1,138 @@
 // packages/web-game-client/src/game/scenes/MainGameScene.ts
 
 import Phaser from 'phaser';
+import { GameState, PlayerState, CardTemplate, Action } from '../../types';
 
 export class MainGameScene extends Phaser.Scene {
+  private playerInfoText?: Phaser.GameObjects.Text;
+  private opponentInfoText?: Phaser.GameObjects.Text;
+  private playedCardPlayer?: Phaser.GameObjects.Image;
+  private playedCardOpponent?: Phaser.GameObjects.Image;
+  private turnInfoText?: Phaser.GameObjects.Text;
+
+  private lastRenderedTurn: number = -1;
+
   constructor() {
     super({ key: 'MainGameScene' });
   }
 
+  init() {
+    // Listen for changes in the registry
+    this.registry.events.on('changedata', this.updateDisplay, this);
+  }
+
   preload() {
-    // Load assets here
-    // Example: this.load.image('card_back', 'assets/card_back.png');
-    // For now, we'll assume card images are loaded dynamically or via a preloader scene
+    // Dynamically load card images based on templates from the registry
+    const cardTemplates: { [templateId: string]: CardTemplate } = this.registry.get('cardTemplates') || {};
+    for (const templateId in cardTemplates) {
+      const template = cardTemplates[templateId];
+      // Assuming image files are in public/images/cards and named after the templateId
+      this.load.image(template.templateId, `images/cards/${template.templateId}.jpg`);
+    }
   }
 
   create() {
-    // Create game objects here
-    this.add.text(400, 300, 'Hello Phaser!', { fontSize: '50px', color: '#ffffff' }).setOrigin(0.5);
+    const { width, height } = this.scale;
 
-    // Example: Display a card image (assuming it's loaded)
-    // const card = this.add.image(100, 100, 'card_back');
-    // card.setInteractive();
-    // this.input.setDraggable(card);
+    // Player (bottom)
+    this.playerInfoText = this.add.text(width / 2, height - 50, '', {
+      fontSize: '24px',
+      color: '#ffffff',
+      align: 'center'
+    }).setOrigin(0.5);
 
-    // this.input.on('drag', (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject, dragX: number, dragY: number) => {
-    //   gameObject.x = dragX;
-    //   gameObject.y = dragY;
-    // });
+    // Opponent (top)
+    this.opponentInfoText = this.add.text(width / 2, 50, '', {
+      fontSize: '24px',
+      color: '#ffffff',
+      align: 'center'
+    }).setOrigin(0.5);
+    
+    // Turn Info
+    this.turnInfoText = this.add.text(width - 10, 10, '', {
+        fontSize: '20px',
+        color: '#dddddd',
+        align: 'right'
+      }).setOrigin(1, 0);
+
+
+    // Initial display update
+    this.updateDisplay();
+  }
+
+  private updateDisplay() {
+    const gameState: GameState | undefined = this.registry.get('gameState');
+    const clientId: string | undefined = this.registry.get('clientId');
+
+    if (!gameState || !clientId) {
+      this.playerInfoText?.setText('Waiting for game state...');
+      return;
+    }
+
+    const playerState = gameState.players.find(p => p.playerId === clientId);
+    const opponentState = gameState.players.find(p => p.playerId !== clientId);
+
+    if (!playerState || !opponentState) return;
+
+    // Update player and opponent info text
+    this.playerInfoText?.setText(`Player: You\nFunds: ${playerState.funds} | Properties: ${playerState.properties}`);
+    this.opponentInfoText?.setText(`Opponent\nFunds: ${opponentState.funds} | Properties: ${opponentState.properties}`);
+    this.turnInfoText?.setText(`Turn: ${gameState.turn}`);
+
+    // Show played cards on turn resolution
+    if (gameState.turn > this.lastRenderedTurn) {
+        this.lastRenderedTurn = gameState.turn;
+        
+        // Clear previously played cards after a short delay
+        if(this.playedCardPlayer) {
+            this.tweens.add({
+                targets: [this.playedCardPlayer, this.playedCardOpponent],
+                alpha: 0,
+                duration: 500,
+                delay: 1500, // Wait 1.5 seconds before fading
+                onComplete: () => {
+                    this.playedCardPlayer?.destroy();
+                    this.playedCardOpponent?.destroy();
+                    this.playedCardPlayer = undefined;
+                    this.playedCardOpponent = undefined;
+                }
+            });
+        }
+
+        // Display newly played cards if there are actions from the previous state
+        if (gameState.lastActions) {
+            const playerAction = gameState.lastActions.find(a => a.playerId === clientId);
+            const opponentAction = gameState.lastActions.find(a => a.playerId !== clientId);
+
+            if (playerAction) {
+                this.playedCardPlayer = this.displayPlayedCard(playerAction.cardTemplateId, 'player');
+            }
+            if (opponentAction) {
+                this.playedCardOpponent = this.displayPlayedCard(opponentAction.cardTemplateId, 'opponent');
+            }
+        }
+    }
+  }
+
+  private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent'): Phaser.GameObjects.Image {
+    const { width, height } = this.scale;
+    const yPos = playerType === 'player' ? height / 2 + 80 : height / 2 - 80;
+    
+    const cardImage = this.add.image(width / 2, yPos, templateId)
+      .setScale(0.5) // Adjust scale as needed
+      .setAlpha(0);
+
+    // Fade-in tween
+    this.tweens.add({
+      targets: cardImage,
+      alpha: 1,
+      duration: 500,
+    });
+
+    return cardImage;
   }
 
   update() {
-    // Game logic that runs every frame
+    // Game logic that runs every frame (if needed)
   }
 }
