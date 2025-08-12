@@ -447,3 +447,9 @@ Permission is hereby granted, free of charge, to any person obtaining a copy...
 1. PM：GitHub リポジトリ作成、Firebase 情報共有、アセット配置のいずれかを実行
 2. プログラマー：モノレポ骨組み作成（Dev-A）→ 共通スキーマ（Dev-B）→ NullAuthAdapter（Dev-C）→ Local Engine（Dev-D）→ Hand UI（Dev-E） まで完了させる
 3. 小さい PR を出し、CI とレビューでマージしていく（PR テンプレ・Issue テンプレは作成済み）
+
+
+## 12. 開発に際して
+
+GEMINIAIは、コードの読み書き・更新を担当します。
+GEMINIユーザは、その内容をレビューし、Git操作やそのたパッケージのインストールを行います

@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Landgrab Game State",
+  "description": "Schema for the entire game state, player states, cards, and actions.",
+  "type": "object",
+  "properties": {
+    "gameState": {
+      "$ref": "#/definitions/GameState"
+    },
+    "playerState": {
+      "$ref": "#/definitions/PlayerState"
+    },
+    "cardTemplate": {
+      "$ref": "#/definitions/CardTemplate"
+    },
+    "action": {
+      "$ref": "#/definitions/Action"
+    }
+  },
+  "definitions": {
+    "GameState": {
+      "type": "object",
+      "properties": {
+        "matchId": { "type": "string" },
+        "turn": { "type": "integer", "minimum": 0 },
+        "players": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PlayerState" }
+        },
+        "phase": { "type": "string", "enum": ["DRAW", "ACTION", "RESOLUTION"] }
+      },
+      "required": ["matchId", "turn", "players", "phase"]
+    },
+    "PlayerState": {
+      "type": "object",
+      "properties": {
+        "playerId": { "type": "string" },
+        "funds": { "type": "integer", "minimum": 0 },
+        "properties": { "type": "integer", "minimum": 0 },
+        "hand": { 
+          "type": "array",
+          "items": { "$ref": "#/definitions/Card" }
+        },
+        "deck": { 
+          "type": "array",
+          "items": { "$ref": "#/definitions/Card" }
+        },
+        "discard": { 
+          "type": "array",
+          "items": { "$ref": "#/definitions/Card" }
+        }
+      },
+      "required": ["playerId", "funds", "properties", "hand", "deck", "discard"]
+    },
+    "Card": {
+        "type": "object",
+        "properties": {
+            "id": { "type": "string" },
+            "templateId": { "type": "string" }
+        },
+        "required": ["id", "templateId"]
+    },
+    "CardTemplate": {
+      "type": "object",
+      "properties": {
+        "templateId": { "type": "string" },
+        "name": { "type": "string" },
+        "cost": { "type": "integer", "minimum": 0 },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["GAIN_FUNDS", "ACQUIRE", "DEFEND", "FRAUD"] }
+      },
+      "required": ["templateId", "name", "cost", "type"]
+    },
+    "Action": {
+      "type": "object",
+      "properties": {
+        "playerId": { "type": "string" },
+        "cardId": { "type": "string" }
+      },
+      "required": ["playerId", "cardId"]
+    }
+  }
+}
