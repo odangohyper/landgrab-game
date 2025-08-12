@@ -21,4 +21,12 @@
 | 12. ゲームロジックの実装 (ターンの進行、カード効果、勝敗判定) | 未 | GEMINIAI |
 | 13. カード選択UIのインタラクティブ化とコストチェック | 済 | GEMINIAI |
 | 14. Realtime Databaseとのゲーム状態同期 | 済 | GEMINIAI |
-| 15. APIサーバーの初期セットアップ (FastAPI) | 未 | GEMINIAI |
+| 15. APIサーバーの初期セットアップ (FastAPI) | 済 | GEMINIAI |
+
+| **フェーズ2以降の追加タスク** | | |
+| 16. デッキ構築UIの実装 (フロントエンド) | 未 | GEMINIAI |
+| 17. カード画像表示の統合 (HandViewなど) | 未 | GEMINIAI |
+| 18. Phaserでのゲーム要素描画 (プレイヤー、不動産、場札) | 未 | GEMINIAI |
+| 19. デッキ管理APIの実装 (バックエンド) | 未 | GEMINIAI |
+| 20. サーバーサイドゲームロジックの骨組み構築 (FastAPI) | 未 | GEMINIAI |
+| 21. GitHub Actions CIワークフローの構築 | 済 | GEMINIAI |

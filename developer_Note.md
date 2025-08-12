@@ -30,3 +30,37 @@
 
 ---
 以上、優先度Aタスクの完了報告と今後の開発に関するコメントです。
+
+## 追記：フェーズ2以降の主要タスク進捗報告
+
+### 12. ゲームロジックの実装 (ターンの進行、カード効果、勝敗判定) - 完了
+
+*   `engine.ts`にターンの進行ロジック（資金獲得フェイズ、ドローフェイズ）を実装しました。
+*   各カード（資金集め、買収、防衛、詐欺）の基本的な効果を`src/game/cards/`配下に実装しました。
+*   `engine.ts`の`resolveActions`メソッドを改良し、カードのコストチェック、手札から捨て札への移動、カード効果の適用ロジックを組み込みました。
+*   「買収カード同士の相打ち」ルールを含む、基本的な競合解決ロジックを`resolveActions`内に実装しました。
+*   勝利条件のチェック（不動産が0になった場合）のプレースホルダーを追加しました。
+
+### 13. カード選択UIのインタラクティブ化とコストチェック - 完了
+
+*   `HandView.tsx`のカードをクリック可能にし、選択されたカードのIDを`App.tsx`に渡すようにしました。
+*   `App.tsx`に`selectedCardId`の状態管理と`handleCardSelect`関数を実装しました。
+*   プレイヤーの資金とカードのコストに基づいて、プレイ可能なカードをUI上で視覚的に区別し、選択できないカードは無効化するようにしました。
+*   「Play Turn」ボタンは、カードが選択されるまで無効化されます。
+
+### 14. Realtime Databaseとのゲーム状態同期 - 完了
+
+*   `App.tsx`をFirebase Realtime Databaseと連携させました。
+*   `NullAuthAdapter`を使用して`clientId`を生成し、`createMatch`関数で新しいマッチを作成（または既存のマッチに参加）し、`matchId`を管理するようにしました。
+*   `realtimeClient.ts`に`watchGameState`関数を追加し、`App.tsx`がRealtime Databaseからゲーム状態の更新をリアルタイムで監視するようにしました。
+*   `handlePlayTurn`メソッドは、プレイヤーとシミュレートされたNPCのアクションを`putAction`関数を使ってRealtime Databaseに書き込むようになりました。
+*   Realtime Databaseのリスナーが両プレイヤーのアクションを検知すると、`engine.advanceTurn()`と`engine.applyAction()`が呼び出され、ゲームの状態が更新されてDBに書き戻されるようになりました。
+
+### 解決済みの主要なエラー
+
+*   **`ReferenceError: ref is not defined`**: `realtimeClient.ts`に`watchGameState`関数を追加し、`App.tsx`のインポート文を修正することで解決しました。
+*   **`TypeError: Cannot read properties of undefined (reading 'length')`**: `HandView.tsx`で`hand`プロップが常に配列として扱われるように修正することで解決しました。
+*   **`ERROR: Expected ";" but found "resolveActions"`**: `engine.ts`内のメソッドの重複定義と誤ったネストを修正し、ファイルをクリーンな状態に上書きすることで解決しました。
+
+---
+以上、ここまでの開発進捗と主要なエラー解決に関する報告です。

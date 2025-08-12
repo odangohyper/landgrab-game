@@ -1,0 +1,56 @@
+# .github/workflows/ci.yml
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20' # Use a recent LTS version
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10' # Use a compatible Python version
+
+    - name: Install pnpm (if not already installed)
+      run: npm install -g pnpm # Install pnpm globally for workspace management
+
+    - name: Install root dependencies
+      run: pnpm install # Install root dependencies and link workspaces
+
+    - name: Run frontend tests
+      run: pnpm test --workspace web-game-client # Run tests for the web-game-client package
+
+    # Future steps:
+    # - name: Run frontend lint
+    #   run: pnpm lint --workspace web-game-client
+
+    # - name: Build frontend
+    #   run: pnpm build --workspace web-game-client
+
+    # - name: Install backend dependencies
+    #   run: pip install -r packages/api-server/requirements.txt
+
+    # - name: Run backend tests
+    #   run: python -m pytest packages/api-server/app/tests # Assuming pytest for Python tests
+
+    # - name: Build backend (if applicable)
+    #   run: # Command to build backend
