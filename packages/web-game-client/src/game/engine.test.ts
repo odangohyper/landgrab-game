@@ -40,8 +40,9 @@ describe('GameEngine', () => {
   });
 
   it('should apply an action (placeholder)', () => {
-    const action: Action = { playerId: 'player1-id', cardId: 'some-card-id' };
-    const newState = engine.applyAction(action);
+    const player1Action: Action = { playerId: 'player1-id', cardId: 'some-card-id' };
+    const player2Action: Action | null = null; // Placeholder for opponent's action
+    const newState = engine.applyAction(player1Action, player2Action);
     // Expect state to change based on action, once applyAction is implemented
     expect(newState).toBeDefined(); // Just a basic check for now
   });
