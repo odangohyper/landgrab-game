@@ -457,3 +457,17 @@ GEMINIAIは、コードの読み書き・更新を担当します。
 GEMINIユーザは、その内容をレビューし、Git操作やそのたパッケージのインストールを行います
 
 また、開発は、Win11の環境で行います
+
+## 補足
+
+*Firebase設定の環境変数管理*:
+*フロントエンドのFirebase設定（`firebaseConfig`）は、セキュリティと環境ごとの切り替えの容易さを考慮し、`packages/web-game-client/.env.local`ファイルに`VITE_`プレフィックス付きの環境変数として定義し、コード内で`import.meta.env`を通じてアクセスする方式を採用しました。
+
+*TypeScriptコンパイラオプションの調整*:
+*Vite開発サーバー起動時の`SyntaxError`を解決するため、`packages/web-game-client/tsconfig.app.json`内の`"verbatimModuleSyntax"`オプションを`true`から`false`に変更しました。この設定は、モジュール間の互換性を確保するために必要でした。
+*テストフレームワークの選定と設定*:
+
+*ユニットテストのフレームワークとしてJestを選定し、`packages/web-game-client/package.json`にテストスクリプトを追加、`packages/web-game-client/jest.config.cjs`で設定を行いました。
+*パッケージマネージャーの運用*:
+*`GEMINI.md`では`pnpm / yarn workspaces`が推奨されていましたが、`pnpm`が利用できない環境であったため、現状は`npm`を主要なパッケージマネージャーとして使用しています。ルートでのワークスペース設定も`npm`で行いました。
+  

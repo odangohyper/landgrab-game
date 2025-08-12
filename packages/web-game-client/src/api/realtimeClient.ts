@@ -72,6 +72,24 @@ export async function writeState(matchId: string, gameState: GameState): Promise
 }
 
 /**
+ * Realtime Database上のゲームの状態を監視します。
+ * @param matchId マッチID
+ * @param callback ゲームの状態が更新されたときに呼び出されるコールバック関数
+ * @returns 監視を停止するためのアンサブスクライブ関数
+ */
+export function watchGameState(matchId: string, callback: (gameState: GameState) => void): () => void {
+  const stateRef = ref(database, `matches/${matchId}/state`);
+  const listener = onValue(stateRef, (snapshot: DataSnapshot) => {
+    const gameState = snapshot.val();
+    if (gameState) {
+      callback(gameState);
+    }
+  });
+  console.log(`Watching game state for match ${matchId}.`);
+  return () => off(stateRef, 'value', listener); // アンサブスクライブ関数
+}
+
+/**
  * Realtime Database上のカードテンプレートを読み込みます。
  * @param version カードテンプレートのバージョン (例: 'v1')
  * @returns カードテンプレートのマップ
