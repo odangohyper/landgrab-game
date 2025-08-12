@@ -1,34 +1,28 @@
 // packages/web-game-client/src/components/DeckBuilder.tsx
 
 import React, { useState, useEffect } from 'react';
-import { CardTemplate } from '../types'; // Assuming CardTemplate is needed
+import { CardTemplate } from '../types';
+import { fetchCardTemplates } from '../api/realtimeClient'; // Import fetchCardTemplates
 
 interface DeckBuilderProps {
-  // Props will be added later, e.g., availableCardTemplates, currentDeck
+  // Props will be added later, e.g., currentDeck
 }
 
 const DeckBuilder: React.FC<DeckBuilderProps> = () => {
-  const [availableCards, setAvailableCards] = useState<CardTemplate[]>([]);
+  const [availableCardTemplates, setAvailableCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({});
   const [currentDeck, setCurrentDeck] = useState<CardTemplate[]>([]);
 
   useEffect(() => {
-    // Simulate fetching available card templates
-    // In a real scenario, this would come from Realtime Database or API
-    const dummyCardTemplates: CardTemplate[] = [
-      { templateId: 'GAIN_FUNDS', name: '資金集め', cost: 0, type: 'GAIN_FUNDS', description: '資金が2増加します。' },
-      { templateId: 'ACQUIRE', name: '買収', cost: 2, type: 'ACQUIRE', description: '相手の不動産を1つ奪います。' },
-      { templateId: 'DEFEND', name: '防衛', cost: 0, type: 'DEFEND', description: '相手の「買収」を無効化します。' },
-      { templateId: 'FRAUD', name: '詐欺', cost: 1, type: 'FRAUD', description: '相手が「買収」を出していた場合、それを無効にし、代わりに相手の不動産を1つ奪います。' },
-      // Add more dummy cards for variety
-      { templateId: 'STEAL_FUNDS', name: '窃盗', cost: 1, type: 'GAIN_FUNDS', description: '相手の資金を1奪います。' }, // Example of future card
-    ];
-    setAvailableCards(dummyCardTemplates);
+    const loadCardTemplates = async () => {
+      const fetchedTemplates = await fetchCardTemplates('v1'); // Fetch from DB
+      setAvailableCardTemplates(fetchedTemplates);
+    };
+    loadCardTemplates();
   }, []);
 
-  const handleAddCardToDeck = (card: CardTemplate) => {
-    // Limit deck size to 10 as per GEMINI.md
+  const handleAddCardToDeck = (cardTemplate: CardTemplate) => {
     if (currentDeck.length < 10) {
-      setCurrentDeck([...currentDeck, card]);
+      setCurrentDeck([...currentDeck, cardTemplate]);
     } else {
       alert('デッキは10枚までです！');
     }
@@ -48,13 +42,19 @@ const DeckBuilder: React.FC<DeckBuilderProps> = () => {
         <div style={{ border: '1px solid lightgray', padding: '10px', width: '45%' }}>
           <h3>利用可能なカード</h3>
           <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-            {availableCards.map((card) => (
-              <div key={card.templateId} style={{ border: '1px solid gray', margin: '5px', padding: '5px' }}>
-                <h4>{card.name} (コスト: {card.cost})</h4>
-                <p>{card.description}</p>
-                <button onClick={() => handleAddCardToDeck(card)}>デッキに追加</button>
-              </div>
-            ))}
+            {Object.values(availableCardTemplates).map((card) => {
+              const imageUrl = `/images/cards/${card.templateId}.jpg`; // Assuming .jpg
+              return (
+                <div key={card.templateId} style={{ border: '1px solid gray', margin: '5px', padding: '5px', display: 'flex', alignItems: 'center' }}>
+                  {imageUrl && <img src={imageUrl} alt={card.name} style={{ width: '50px', height: 'auto', marginRight: '10px' }} />}
+                  <div>
+                    <h4>{card.name} (コスト: {card.cost})</h4>
+                    <p style={{ fontSize: '0.8em' }}>{card.description}</p>
+                    <button onClick={() => handleAddCardToDeck(card)}>デッキに追加</button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -65,12 +65,18 @@ const DeckBuilder: React.FC<DeckBuilderProps> = () => {
             {currentDeck.length === 0 ? (
               <p>デッキにカードがありません。</p>
             ) : (
-              currentDeck.map((card, index) => (
-                <div key={index} style={{ border: '1px solid gray', margin: '5px', padding: '5px' }}>
-                  <h4>{card.name}</h4>
-                  <button onClick={() => handleRemoveCardFromDeck(index)}>デッキから削除</button>
-                </div>
-              ))
+              currentDeck.map((card, index) => {
+                const imageUrl = `/images/cards/${card.templateId}.jpg`; // Assuming .jpg
+                return (
+                  <div key={index} style={{ border: '1px solid gray', margin: '5px', padding: '5px', display: 'flex', alignItems: 'center' }}>
+                    {imageUrl && <img src={imageUrl} alt={card.name} style={{ width: '50px', height: 'auto', marginRight: '10px' }} />}
+                    <div>
+                      <h4>{card.name}</h4>
+                      <button onClick={() => handleRemoveCardFromDeck(index)}>デッキから削除</button>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

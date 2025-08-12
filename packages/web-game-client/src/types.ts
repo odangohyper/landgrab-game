@@ -12,6 +12,7 @@ export interface CardTemplate {
   cost: number;
   description?: string;
   type: 'GAIN_FUNDS' | 'ACQUIRE' | 'DEFEND' | 'FRAUD';
+  imageFile?: string; // New property for image file name
 }
 
 export interface PlayerState {

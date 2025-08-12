@@ -5,7 +5,7 @@ import { GameEngine } from '../game/engine';
 import { GameState, PlayerState, Card, Action } from '../types';
 import HandView from './HandView';
 import { launch } from '../game/PhaserGame';
-import { createMatch, putAction, watchActions, writeState, watchGameState } from '../api/realtimeClient';
+import { createMatch, putAction, watchActions, writeState, watchGameState, fetchCardTemplates } from '../api/realtimeClient';
 import { NullAuthAdapter } from '../auth/NullAuthAdapter';
 import { database } from '../firebaseConfig'; // Import database for set(ref(...))
 import { ref, set } from 'firebase/database'; // Import ref and set for clearing actions
@@ -21,6 +21,7 @@ const GameView: React.FC<GameViewProps> = () => {
   const [matchId, setMatchId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [opponentId, setOpponentId] = useState<string | null>(null);
+  const [cardTemplates, setCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({}); // New state for card templates
 
   const engineRef = useRef<GameEngine | null>(null);
 
@@ -33,6 +34,10 @@ const GameView: React.FC<GameViewProps> = () => {
     setOpponentId(npcId);
 
     const setupMatch = async () => {
+      // Fetch card templates first
+      const fetchedCardTemplates = await fetchCardTemplates('v1'); // Assuming 'v1' version
+      setCardTemplates(fetchedCardTemplates);
+
       let currentMatchId = localStorage.getItem('currentMatchId');
       if (!currentMatchId) {
         currentMatchId = await createMatch();
@@ -43,8 +48,10 @@ const GameView: React.FC<GameViewProps> = () => {
       if (!engineRef.current) {
         const initialGameState = GameEngine.createInitialState(currentClientId, npcId);
         engineRef.current = new GameEngine(initialGameState);
+        // Advance turn once to draw initial hands
+        const gameStateWithInitialHand = engineRef.current.advanceTurn();
         setGameEngine(engineRef.current);
-        await writeState(currentMatchId, initialGameState);
+        await writeState(currentMatchId, gameStateWithInitialHand);
       }
 
       const unsubscribeState = watchGameState(currentMatchId, (dbGameState) => {
@@ -142,7 +149,7 @@ const GameView: React.FC<GameViewProps> = () => {
         </div>
       )}
 
-      <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} />
+      <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} />
 
       <div id="phaser-game-container" style={{ width: '800px', height: '600px', margin: '20px auto', border: '1px solid white' }}></div>
     </div>

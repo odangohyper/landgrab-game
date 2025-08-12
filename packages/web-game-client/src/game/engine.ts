@@ -153,12 +153,8 @@ export class GameEngine {
   private resolveActions(player1Action: Action | null, player2Action: Action | null): void {
     console.log('Resolving actions...');
 
-    // Determine actual player IDs from actions, or fall back to known IDs if actions are null
-    const p1Id = player1Action?.playerId || this.state.players[0].playerId; // Assuming first player in state is player1
-    const p2Id = player2Action?.playerId || this.state.players[1].playerId; // Assuming second player in state is player2
-
-    const player1 = this.state.players.find(p => p.playerId === p1Id);
-    const player2 = this.state.players.find(p => p.playerId === p2Id);
+    const player1 = this.state.players.find(p => p.playerId === (player1Action?.playerId || 'player1-id'));
+    const player2 = this.state.players.find(p => p.playerId === (player2Action?.playerId || 'npc-player-id')); // Assuming player2 is NPC
 
     if (!player1 || !player2) {
       console.error('Players not found in state.');
