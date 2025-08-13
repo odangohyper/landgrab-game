@@ -115,7 +115,15 @@ body {
   flex-grow: 1; /* Take remaining vertical space */
 }
 
-/* Removed #phaser-game-container styles */
+#phaser-game-container {
+  width: 700px;
+  height: 500px;
+  margin-left: 100px;
+  border-radius: 8px;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+  border: 2px solid rgba(0, 255, 255, 0.7);
+  margin-bottom: 1rem;
+}
 
 /* HUD for player and opponent info */
 .hud {

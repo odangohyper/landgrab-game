@@ -40,6 +40,7 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   create() {
+    console.log('MainGameScene create() called');
     const { width, height } = this.scale;
 
     // Player (bottom) HUD elements
@@ -71,11 +72,11 @@ export class MainGameScene extends Phaser.Scene {
     // }).setOrigin(0, 0.5);
     
     // Turn Info
-    this.turnInfoText = this.add.text(width - 20, 10, '', {
-        fontSize: '20px',
-        color: '#dddddd',
-        align: 'right'
-      }).setOrigin(1, 0);
+    // this.turnInfoText = this.add.text(width - 20, 10, '', {
+    //     fontSize: '20px',
+    //     color: '#dddddd',
+    //     align: 'right'
+    //   }).setOrigin(1, 0);
 
 
     // Initial display update
@@ -116,6 +117,7 @@ export class MainGameScene extends Phaser.Scene {
 
     // Game Over message
     if (gameState.phase === 'GAME_OVER') {
+      console.log('Game Over detected in MainGameScene');
       const { width, height } = this.scale;
       const message = playerState.properties > 0 ? 'You Win!' : 'You Lose!';
       const color = playerState.properties > 0 ? '#00ff00' : '#ff0000';
@@ -136,10 +138,12 @@ export class MainGameScene extends Phaser.Scene {
 
     // Show played cards on turn resolution
     if (gameState.turn > this.lastRenderedTurn) {
+        console.log('New turn detected, checking for actions');
         this.lastRenderedTurn = gameState.turn;
         
         // Clear previously played cards after a short delay
         if(this.playedCardPlayer) {
+            console.log('Clearing previous cards');
             this.tweens.add({
                 targets: [this.playedCardPlayer, this.playedCardOpponent],
                 alpha: 0,
@@ -155,21 +159,28 @@ export class MainGameScene extends Phaser.Scene {
         }
 
         // Display newly played cards if there are actions from the previous state
-        if (gameState.lastActions) {
-            const playerAction = gameState.lastActions.find(a => a.playerId === clientId);
-            const opponentAction = gameState.lastActions.find(a => a.playerId !== clientId);
+        const lastActions = this.registry.get('lastActions');
+        if (lastActions && lastActions.length > 0) {
+            console.log('lastActions found:', lastActions);
+            const playerAction = lastActions.find(a => a.playerId === clientId);
+            const opponentAction = lastActions.find(a => a.playerId !== clientId);
 
             if (playerAction) {
+                console.log('Displaying player action', playerAction.cardTemplateId);
                 this.playedCardPlayer = this.displayPlayedCard(playerAction.cardTemplateId, 'player');
             }
             if (opponentAction) {
+                console.log('Displaying opponent action', opponentAction.cardTemplateId);
                 this.playedCardOpponent = this.displayPlayedCard(opponentAction.cardTemplateId, 'opponent');
             }
+        } else {
+            console.log('No lastActions found or empty.');
         }
     }
   }
 
   private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent'): Phaser.GameObjects.Image {
+    console.log(`Displaying card ${templateId} for ${playerType}`);
     const { width, height } = this.scale;
     
     // Initial positions (conceptual hand area)
@@ -217,6 +228,7 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   private showPropertyChange(change: number, playerType: 'player' | 'opponent') {
+    console.log(`Property change: ${change} for ${playerType}`);
     const { width, height } = this.scale;
     const xPos = playerType === 'player' ? width / 2 + 150 : width / 2 + 150; // Near property icon
     const yPos = playerType === 'player' ? height - 50 : 50;

@@ -24,6 +24,7 @@ const GameView: React.FC<GameViewProps> = () => {
   const [cardTemplates, setCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({});
 
   const engineRef = useRef<GameEngine | null>(null);
+  const phaserContainerRef = useRef<HTMLDivElement>(null); // Ref for the Phaser container div
   const gameRef = useRef<Phaser.Game | null>(null); // Ref to hold the Phaser game instance
   const isResolvingTurnRef = useRef(false); // Mutex to prevent double resolution
 
@@ -65,6 +66,11 @@ const GameView: React.FC<GameViewProps> = () => {
           if (currentPlayerState) {
             setPlayerHand(currentPlayerState.hand);
           }
+
+          // Explicitly set lastActions to Phaser registry if available
+          if (gameRef.current && dbGameState.lastActions) {
+            gameRef.current.registry.set('lastActions', dbGameState.lastActions);
+          }
         }
       });
 
@@ -80,22 +86,26 @@ const GameView: React.FC<GameViewProps> = () => {
           if (engineRef.current) {
             // The engine's state is already updated by watchGameState. Now, apply actions.
             let newGameState = engineRef.current.applyAction(player1Action, player2Action);
+            // Explicitly set lastActions to Phaser registry before writing to DB
+            if (gameRef.current && newGameState.lastActions) {
+              gameRef.current.registry.set('lastActions', newGameState.lastActions);
+            }
             await writeState(currentMatchId, newGameState);
             
-            // Now advance to the next turn
-            newGameState = engineRef.current.advanceTurn();
-            await writeState(currentMatchId, newGameState);
-
-            // Clear actions for the next turn
-            await set(ref(database, `matches/${currentMatchId}/actions`), {});
+            // After writing the state with lastActions, wait a bit for Phaser to render
+            // Then advance to the next turn
+            setTimeout(async () => {
+              newGameState = engineRef.current!.advanceTurn();
+              await writeState(currentMatchId, newGameState);
+              // Clear actions for the next turn
+              await set(ref(database, `matches/${currentMatchId}/actions`), {});
+            }, 2000); // Wait 2 seconds before advancing turn and clearing actions
           }
           isResolvingTurnRef.current = false;
         }
       });
 
-      // if (!gameRef.current) {
-      //   gameRef.current = launch('phaser-game-container');
-      // }
+      // Phaser launch logic moved to a separate useEffect
 
       return () => {
         unsubscribeState();
@@ -106,10 +116,22 @@ const GameView: React.FC<GameViewProps> = () => {
     setupMatch();
     
     return () => {
-        gameRef.current?.destroy(true);
-        gameRef.current = null;
+        // gameRef.current?.destroy(true); // Destroy logic moved to separate useEffect
+        // gameRef.current = null;
     }
   }, []);
+
+  // Effect to launch Phaser game when container ref is available
+  useEffect(() => {
+    if (phaserContainerRef.current && !gameRef.current) {
+      gameRef.current = launch(phaserContainerRef.current); // Pass the actual DOM element
+    }
+
+    return () => {
+      gameRef.current?.destroy(true);
+      gameRef.current = null;
+    };
+  }, [phaserContainerRef.current]);
 
   useEffect(() => {
     if (gameRef.current && gameState && Object.keys(cardTemplates).length > 0 && clientId) {
@@ -193,7 +215,7 @@ const GameView: React.FC<GameViewProps> = () => {
       )}
 
       <div className="main-area">
-        {gameState.phase === 'GAME_OVER' && <h2 className="game-over-message">Game Over!</h2>}
+        <div id="phaser-game-container" ref={phaserContainerRef}></div>
       </div>
 
       <div className="player-area">
