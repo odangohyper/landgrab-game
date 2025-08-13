@@ -135,5 +135,13 @@
 *   **ゲームオーバーループ問題**: ゲームが終了してもターンが進行し続ける問題を、`GameEngine`と`GameView`の両方にガード処理を追加することで解決しました。
 *   **CIテストの失敗**: `GameEngine`のコンストラクタ変更後にテストが失敗する問題を、テストコード側で正しい`gameState`を注入するように修正して解決しました。
 
----
-以上で`TODO.md`の全タスクが完了しました。次の指示をお待ちしています。
+* UI/UXとPhaserアニメーションの洗練（タスク27）の続き:
+       * game-rootの画面全体スケーリングと中央寄せの調整。
+       * App.cssとmain.tsxの修正によるレイアウト調整。
+       * nav-panelとgame-panelのレイアウトと色調整。
+       * top-barとplayer-areaのパディング削除と位置調整。
+       * hud.opponent-hudとtop-barの重なり解消。
+       * GameボタンとDeck Builderボタンのスタイリング。
+       * Phaser Canvasのサイズ調整と、phaser-game-containerのdivとlaunch呼び出しに関するデバッグと修正。
+       * Phaser Canvas内のturnInfoTextの非表示化。
+       * 未解決の問題: カードアニメーションが表示されない問題（lastActionsがPhaserに正しく伝わらない問題）。
