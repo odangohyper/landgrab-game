@@ -1,21 +1,89 @@
-/* General App Styling */
+html, body, #root, #game-root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Prevent scrollbars */
+}
+
 body {
   background-color: #1a1a1a; /* Darker background for the whole page */
   color: #f0f0f0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  /* Removed flexbox properties */
 }
 
-/* GameView Container */
+#game-root {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1400px; /* Base width */
+  height: 900px; /* Base height */
+  transform-origin: center center;
+  /* Scaling will be applied by JavaScript */
+}
+
+/* General App Styling */
+.App {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row; /* Change to row */
+}
+
+.nav-panel {
+  width: 200px; /* Fixed width for navigation */
+  height: 100%;
+  background-color: #1a1a1a;
+  padding: 1rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nav-panel button {
+  background-color: #00ffff;
+  color: #1a1a1a;
+  border: none;
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.1s;
+  width: 100%; /* Make buttons fill the width of nav-panel */
+}
+
+.nav-panel button:hover {
+  background-color: #80ffff;
+  transform: scale(1.02);
+}
+
+.nav-panel button:active {
+  transform: scale(0.98);
+}
+
+.game-panel {
+  flex-grow: 1; /* Take remaining space */
+  height: 100%;
+  display: flex; /* Add flexbox */
+  justify-content: center; /* Center content horizontally */
+  align-items: center; /* Center content vertically */
+  background-color: #2a2a2a;
+}
+
 .game-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 1000px; /* Limit max width for large screens */
-  margin: 0 auto;
-  padding: 1rem;
+  height: 100%; /* Occupy full height of #game-root */
   box-sizing: border-box;
+  position: relative; /* Add position relative here */
 }
+
 
 /* Top bar for title and turn info */
 .top-bar {
@@ -23,10 +91,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 1rem;
+  /* Removed padding: 0.5rem 1rem; */
   background-color: #2a2a2a;
   border-radius: 8px;
-  margin-bottom: 1rem;
+  /* Removed margin-bottom: 1rem; */
 }
 
 .game-title {
@@ -44,17 +112,10 @@ body {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  position: relative; /* For positioning HUDs */
+  flex-grow: 1; /* Take remaining vertical space */
 }
 
-#phaser-game-container {
-  width: 800px;
-  height: 600px;
-  border-radius: 8px;
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
-  border: 2px solid rgba(0, 255, 255, 0.7);
-  margin-bottom: 1rem;
-}
+/* Removed #phaser-game-container styles */
 
 /* HUD for player and opponent info */
 .hud {
@@ -74,7 +135,7 @@ body {
 
 .opponent-hud {
   position: absolute;
-  top: 20px;
+  top: 80px;
   left: 20px;
 }
 
@@ -91,9 +152,11 @@ body {
   flex-direction: column;
   align-items: center;
   background-color: #2a2a2a;
-  padding: 1rem;
+  /* Removed padding: 1rem; */
   border-radius: 8px;
+  /* Removed margin-bottom: 1rem; */
 }
+
 
 .action-bar {
   margin-bottom: 1rem;

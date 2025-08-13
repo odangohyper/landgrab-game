@@ -21,11 +21,13 @@ function App() {
 
   return (
     <div className="App">
-      <nav style={{ marginBottom: '20px' }}>
-        <button onClick={() => setCurrentView('game')} style={{ marginRight: '10px' }}>Game</button>
+      <div className="nav-panel">
+        <button onClick={() => setCurrentView('game')}>Game</button>
         <button onClick={() => setCurrentView('deckBuilder')}>Deck Builder</button>
-      </nav>
-      {renderView()}
+      </div>
+      <div className="game-panel">
+        {renderView()}
+      </div>
     </div>
   );
 }

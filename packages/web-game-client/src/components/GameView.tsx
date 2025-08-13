@@ -93,9 +93,9 @@ const GameView: React.FC<GameViewProps> = () => {
         }
       });
 
-      if (!gameRef.current) {
-        gameRef.current = launch('phaser-game-container');
-      }
+      // if (!gameRef.current) {
+      //   gameRef.current = launch('phaser-game-container');
+      // }
 
       return () => {
         unsubscribeState();
@@ -174,27 +174,25 @@ const GameView: React.FC<GameViewProps> = () => {
         <p className="turn-info">Turn: {gameState.turn}</p>
       </div>
 
+      {/* Opponent HUD */}
+      {opponentState && (
+        <div className="hud opponent-hud">
+          <h2>Opponent</h2>
+          <p>Funds: {opponentState.funds}</p>
+          <p>Properties: {opponentState.properties}</p>
+        </div>
+      )}
+
+      {/* Player HUD */}
+      {currentPlayerState && (
+        <div className="hud player-hud">
+          <h2>Player: You</h2>
+          <p>Funds: {currentPlayerState.funds}</p>
+          <p>Properties: {currentPlayerState.properties}</p>
+        </div>
+      )}
+
       <div className="main-area">
-        <div id="phaser-game-container"></div>
-
-        {/* Opponent HUD */}
-        {opponentState && (
-          <div className="hud opponent-hud">
-            <h2>Opponent</h2>
-            <p>Funds: {opponentState.funds}</p>
-            <p>Properties: {opponentState.properties}</p>
-          </div>
-        )}
-
-        {/* Player HUD */}
-        {currentPlayerState && (
-          <div className="hud player-hud">
-            <h2>Player: You</h2>
-            <p>Funds: {currentPlayerState.funds}</p>
-            <p>Properties: {currentPlayerState.properties}</p>
-          </div>
-        )}
-
         {gameState.phase === 'GAME_OVER' && <h2 className="game-over-message">Game Over!</h2>}
       </div>
 

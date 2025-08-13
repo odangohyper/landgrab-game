@@ -37,5 +37,8 @@
 | 24. デッキ管理APIのデータベース接続 (Firebase) | 未 | GEMINIAI |
 | 25. デッキ構築UIとAPIの統合 | 未 | GEMINIAI |
 | 26. NPC AIの改善 (重み付け行動型) | 未 | GEMINIAI |
-| 27. UI/UXとPhaserアニメーションの洗練 | 未 | GEMINIAI |
+| 27. UI/UXとPhaserアニメーションの洗練 | 済 | GEMINIAI |
 | 28. タイトル画面の実装 | 未 | GEMINIAI |
+
+| **優先順位の低いタスク** | | |
+| 29. AudioContext警告の解消と音声機能の追加 | 未 | GEMINIAI |
