@@ -156,6 +156,7 @@ const GameView: React.FC<GameViewProps> = () => {
   }
 
   const currentPlayerState = gameState.players.find(p => p.playerId === clientId);
+  const opponentState = gameState.players.find(p => p.playerId !== clientId);
   const playableCardIds: string[] = [];
   if (currentPlayerState && engineRef.current) {
     currentPlayerState.hand.forEach(card => {
@@ -167,26 +168,47 @@ const GameView: React.FC<GameViewProps> = () => {
   }
 
   return (
-    <div className="GameView">
-      <h1>鹿王院エリザベスの地上げですわ！</h1>
-      <div style={{ marginBottom: '20px' }}>
-        <p>Turn: {gameState.turn}</p>
-        <p>Phase: {gameState.phase}</p>
-        {gameState.phase !== 'GAME_OVER' && <button onClick={handlePlayTurn} disabled={!selectedCardId}>Play Turn</button>}
-         {gameState.phase === 'GAME_OVER' && <h2>Game Over!</h2>}
+    <div className="game-container">
+      <div className="top-bar">
+        <h1 className="game-title">鹿王院エリザベスの地上げですわ！</h1>
+        <p className="turn-info">Turn: {gameState.turn}</p>
       </div>
 
-      {currentPlayerState && (
-        <div style={{ marginBottom: '20px' }}>
-          <h2>Player: You</h2>
-          <p>Funds: {currentPlayerState.funds}</p>
-          <p>Properties: {currentPlayerState.properties}</p>
+      <div className="main-area">
+        <div id="phaser-game-container"></div>
+
+        {/* Opponent HUD */}
+        {opponentState && (
+          <div className="hud opponent-hud">
+            <h2>Opponent</h2>
+            <p>Funds: {opponentState.funds}</p>
+            <p>Properties: {opponentState.properties}</p>
+          </div>
+        )}
+
+        {/* Player HUD */}
+        {currentPlayerState && (
+          <div className="hud player-hud">
+            <h2>Player: You</h2>
+            <p>Funds: {currentPlayerState.funds}</p>
+            <p>Properties: {currentPlayerState.properties}</p>
+          </div>
+        )}
+
+        {gameState.phase === 'GAME_OVER' && <h2 className="game-over-message">Game Over!</h2>}
+      </div>
+
+      <div className="player-area">
+        <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
+
+        <div className="action-bar">
+          {gameState.phase !== 'GAME_OVER' && (
+            <button onClick={handlePlayTurn} disabled={!selectedCardId} className="play-button">
+              Play Turn
+            </button>
+          )}
         </div>
-      )}
-
-      <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} />
-
-      <div id="phaser-game-container" style={{ width: '800px', height: '600px', margin: '20px auto', border: '1px solid white' }}></div>
+      </div>
     </div>
   );
 };

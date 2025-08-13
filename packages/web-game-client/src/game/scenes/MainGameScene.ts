@@ -5,7 +5,9 @@ import { GameState, PlayerState, CardTemplate, Action } from '../../types';
 
 export class MainGameScene extends Phaser.Scene {
   private playerInfoText?: Phaser.GameObjects.Text;
+  private playerPropertiesText?: Phaser.GameObjects.Text;
   private opponentInfoText?: Phaser.GameObjects.Text;
+  private opponentPropertiesText?: Phaser.GameObjects.Text;
   private playedCardPlayer?: Phaser.GameObjects.Image;
   private playedCardOpponent?: Phaser.GameObjects.Image;
   private turnInfoText?: Phaser.GameObjects.Text;
@@ -26,27 +28,44 @@ export class MainGameScene extends Phaser.Scene {
     const cardTemplates: { [templateId: string]: CardTemplate } = this.registry.get('cardTemplates') || {};
     for (const templateId in cardTemplates) {
       const template = cardTemplates[templateId];
-      // Assuming image files are in public/images/cards and named after the templateId
       this.load.image(template.templateId, `images/cards/${template.templateId}.jpg`);
     }
+
+    // Load placeholder icons
+    this.load.image('coin_icon', 'images/icons/coin.png');
+    this.load.image('property_icon', 'images/icons/property.png');
   }
 
   create() {
     const { width, height } = this.scale;
 
-    // Player (bottom)
-    this.playerInfoText = this.add.text(width / 2, height - 50, '', {
+    // Player (bottom) HUD elements
+    this.add.image(width / 2 - 100, height - 50, 'coin_icon').setScale(0.1).setOrigin(0.5);
+    this.playerInfoText = this.add.text(width / 2 - 50, height - 50, '', {
       fontSize: '24px',
       color: '#ffffff',
-      align: 'center'
-    }).setOrigin(0.5);
+      align: 'left'
+    }).setOrigin(0, 0.5);
+    this.add.image(width / 2 + 50, height - 50, 'property_icon').setScale(0.1).setOrigin(0.5);
+    this.playerPropertiesText = this.add.text(width / 2 + 100, height - 50, '', {
+      fontSize: '24px',
+      color: '#ffffff',
+      align: 'left'
+    }).setOrigin(0, 0.5);
 
-    // Opponent (top)
-    this.opponentInfoText = this.add.text(width / 2, 50, '', {
+    // Opponent (top) HUD elements
+    this.add.image(width / 2 - 100, 50, 'coin_icon').setScale(0.1).setOrigin(0.5);
+    this.opponentInfoText = this.add.text(width / 2 - 50, 50, '', {
       fontSize: '24px',
       color: '#ffffff',
-      align: 'center'
-    }).setOrigin(0.5);
+      align: 'left'
+    }).setOrigin(0, 0.5);
+    this.add.image(width / 2 + 50, 50, 'property_icon').setScale(0.1).setOrigin(0.5);
+    this.opponentPropertiesText = this.add.text(width / 2 + 100, 50, '', {
+      fontSize: '24px',
+      color: '#ffffff',
+      align: 'left'
+    }).setOrigin(0, 0.5);
     
     // Turn Info
     this.turnInfoText = this.add.text(width - 10, 10, '', {
@@ -75,8 +94,10 @@ export class MainGameScene extends Phaser.Scene {
     if (!playerState || !opponentState) return;
 
     // Update player and opponent info text
-    this.playerInfoText?.setText(`Player: You\nFunds: ${playerState.funds} | Properties: ${playerState.properties}`);
-    this.opponentInfoText?.setText(`Opponent\nFunds: ${opponentState.funds} | Properties: ${opponentState.properties}`);
+    this.playerInfoText?.setText(`${playerState.funds}`);
+    this.playerPropertiesText?.setText(`${playerState.properties}`);
+    this.opponentInfoText?.setText(`${opponentState.funds}`);
+    this.opponentPropertiesText?.setText(`${opponentState.properties}`);
     this.turnInfoText?.setText(`Turn: ${gameState.turn}`);
 
     // Show played cards on turn resolution
