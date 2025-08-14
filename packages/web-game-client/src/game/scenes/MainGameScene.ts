@@ -1,7 +1,7 @@
 // packages/web-game-client/src/game/scenes/MainGameScene.ts
 
 import Phaser from 'phaser';
-import { GameState, PlayerState, CardTemplate, Action } from '../../types';
+import { GameState, PlayerState, CardTemplate, ResolvedAction } from '../../types';
 
 export class MainGameScene extends Phaser.Scene {
   private playerInfoText?: Phaser.GameObjects.Text;
@@ -12,7 +12,6 @@ export class MainGameScene extends Phaser.Scene {
   private playedCardOpponent?: Phaser.GameObjects.Image;
   private turnInfoText?: Phaser.GameObjects.Text;
 
-  private lastRenderedTurn: number = -1;
   private lastPlayerProperties: number = -1;
   private lastOpponentProperties: number = -1;
 
@@ -21,8 +20,12 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   init() {
-    // Listen for changes in the registry
-    this.registry.events.on('changedata', this.updateDisplay, this);
+    // Listen for general data changes for HUD updates
+    this.registry.events.on('changedata-gameState', this.updateDisplay, this);
+    // Listen specifically for when lastActions are set
+    this.registry.events.on('changedata-lastActions', this.handleActionsResolved, this);
+    // Listen for the game over event from React
+    this.game.events.on('gameOver', this.displayGameOverMessage, this);
   }
 
   preload() {
@@ -41,61 +44,115 @@ export class MainGameScene extends Phaser.Scene {
 
   create() {
     console.log('MainGameScene create() called');
-    const { width, height } = this.scale;
-
-    // Player (bottom) HUD elements
-    // this.add.image(width / 2 - 100, height - 50, 'coin_icon').setScale(0.1).setOrigin(0.5);
-    // this.playerInfoText = this.add.text(width / 2 - 50, height - 50, '', {
-    //   fontSize: '24px',
-    //   color: '#ffffff',
-    //   align: 'left'
-    // }).setOrigin(0, 0.5);
-    // this.add.image(width / 2 + 50, height - 50, 'property_icon').setScale(0.1).setOrigin(0.5);
-    // this.playerPropertiesText = this.add.text(width / 2 + 100, height - 50, '', {
-    //   fontSize: '24px',
-    //   color: '#ffffff',
-    //   align: 'left'
-    // }).setOrigin(0, 0.5);
-
-    // Opponent (top) HUD elements
-    // this.add.image(width / 2 - 100, 50, 'coin_icon').setScale(0.1).setOrigin(0.5);
-    // this.opponentInfoText = this.add.text(width / 2 - 50, 50, '', {
-    //   fontSize: '24px',
-    //   color: '#ffffff',
-    //   align: 'left'
-    // }).setOrigin(0, 0.5);
-    // this.add.image(width / 2 + 50, 50, 'property_icon').setScale(0.1).setOrigin(0.5);
-    // this.opponentPropertiesText = this.add.text(width / 2 + 100, 50, '', {
-    //   fontSize: '24px',
-    //   color: '#ffffff',
-    //   align: 'left'
-    // }).setOrigin(0, 0.5);
-    
-    // Turn Info
-    // this.turnInfoText = this.add.text(width - 20, 10, '', {
-    //     fontSize: '20px',
-    //     color: '#dddddd',
-    //     align: 'right'
-    //   }).setOrigin(1, 0);
-
-
     // Initial display update
     this.updateDisplay();
   }
 
+  private handleActionsResolved(parent: any, value: ResolvedAction[] | null, previousValue: ResolvedAction[] | null) { // 引数を修正
+    console.log('--- handleActionsResolved START ---');
+    console.log('Parameter "value" (new lastActions):', value); // value をログ出力
+    console.log('Registry "lastActions" at start (direct get):', this.registry.get('lastActions')); // 念のため直接取得もログ出力
+
+    const currentActions = value; // value が新しい lastActions の値
+
+    console.log('handleActionsScene: Triggered with actions from registry:', currentActions); // ログを修正
+    const clientId: string | undefined = this.registry.get('clientId');
+    if (!clientId) {
+        console.log('handleActionsResolved: clientId not found.');
+        console.log('--- handleActionsResolved END (No clientId) ---');
+        return;
+    }
+
+    // actionsがnullの場合のガードを追加 (currentActionsを使用)
+    if (!currentActions || currentActions.length === 0) { // actions.length === 0 のチェックも追加
+        console.log('handleActionsResolved: currentActions is null or empty, cannot display cards.');
+        console.log('--- handleActionsResolved END (Actions null/empty) ---');
+        return;
+    }
+
+    // Clear previously played cards immediately before showing new ones
+    this.playedCardPlayer?.destroy();
+    this.playedCardOpponent?.destroy();
+    this.playedCardPlayer = undefined;
+    this.playedCardOpponent = undefined;
+
+    console.log('handleActionsResolved: currentActions:', currentActions); // 追加ログ
+
+    const playerAction = currentActions.find(a => a.playerId === clientId);
+    const opponentAction = currentActions.find(a => a.playerId !== clientId);
+
+    console.log('handleActionsResolved: playerAction:', playerAction); // 追加ログ
+    console.log('handleActionsResolved: opponentAction:', opponentAction); // 追加ログ
+
+    if (playerAction) {
+      console.log('Displaying player action', playerAction.cardTemplateId);
+      this.playedCardPlayer = this.displayPlayedCard(playerAction.cardTemplateId, 'player');
+    }
+    if (opponentAction) {
+      console.log('Displaying opponent action', opponentAction.cardTemplateId);
+      this.playedCardOpponent = this.displayPlayedCard(opponentAction.cardTemplateId, 'opponent');
+    }
+
+    // ... (既存のコード)
+
+    // After a delay to let animations play, emit an event to React
+    this.time.delayedCall(2000, () => {
+      console.log('Animation complete, emitting event to React.');
+      this.game.events.emit('animationComplete');
+      this.registry.set('lastActions', null);
+      console.log('--- handleActionsResolved END (Animation Complete) ---');
+    });
+  }
+
+  update() {
+    // Game logic that runs every frame (if needed)
+    // **修正点2: updateメソッドでlastActionsを監視**
+    const currentLastActions = this.registry.get('lastActions');
+    if (currentLastActions !== this.lastObservedLastActions) {
+        console.log('Update: lastActions changed to:', currentLastActions);
+        this.lastObservedLastActions = currentLastActions;
+    }
+  }
+
+  private lastObservedLastActions: ResolvedAction[] | null = null; // 新しいプロパティを追加
+
+  private displayGameOverMessage(message: string, isWin: boolean) {
+    console.log('Displaying Game Over message:', message);
+    const { width, height } = this.scale;
+    const color = isWin ? '#00ff00' : '#ff0000';
+
+    // Add a semi-transparent overlay
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+    overlay.setDepth(100); // Ensure it's on top
+
+    const gameOverText = this.add.text(width / 2, height / 2, message, {
+      fontSize: '60px',
+      color: color,
+      stroke: '#000000',
+      strokeThickness: 5,
+      align: 'center'
+    }).setOrigin(0.5);
+    gameOverText.setDepth(101); // Ensure text is on top of overlay
+  }
+
   private updateDisplay() {
+    console.log('--- updateDisplay START ---');
     const gameState: GameState | undefined = this.registry.get('gameState');
     const clientId: string | undefined = this.registry.get('clientId');
 
     if (!gameState || !clientId) {
       this.playerInfoText?.setText('Waiting for game state...');
+      console.log('--- updateDisplay END (No gameState or clientId) ---');
       return;
     }
 
     const playerState = gameState.players.find(p => p.playerId === clientId);
     const opponentState = gameState.players.find(p => p.playerId !== clientId);
 
-    if (!playerState || !opponentState) return;
+    if (!playerState || !opponentState) {
+      console.log('--- updateDisplay END (No playerState or opponentState) ---');
+      return;
+    }
 
     // Update player and opponent info text
     this.playerInfoText?.setText(`${playerState.funds}`);
@@ -115,113 +172,56 @@ export class MainGameScene extends Phaser.Scene {
     this.lastPlayerProperties = playerState.properties;
     this.lastOpponentProperties = opponentState.properties;
 
-    // Game Over message
-    if (gameState.phase === 'GAME_OVER') {
-      console.log('Game Over detected in MainGameScene');
-      const { width, height } = this.scale;
-      const message = playerState.properties > 0 ? 'You Win!' : 'You Lose!';
-      const color = playerState.properties > 0 ? '#00ff00' : '#ff0000';
+    console.log('--- updateDisplay END ---');
+  }
 
-      // Add a semi-transparent overlay
-      const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
-      overlay.setDepth(100); // Ensure it's on top
-
-      const gameOverText = this.add.text(width / 2, height / 2, message, {
-        fontSize: '60px',
-        color: color,
-        stroke: '#000000',
-        strokeThickness: 5,
-        align: 'center'
-      }).setOrigin(0.5);
-      gameOverText.setDepth(101); // Ensure text is on top of overlay
-    }
-
-    // Show played cards on turn resolution
-    if (gameState.turn > this.lastRenderedTurn) {
-        console.log('New turn detected, checking for actions');
-        this.lastRenderedTurn = gameState.turn;
-        
-        // Clear previously played cards after a short delay
-        if(this.playedCardPlayer) {
-            console.log('Clearing previous cards');
-            this.tweens.add({
-                targets: [this.playedCardPlayer, this.playedCardOpponent],
-                alpha: 0,
-                duration: 500,
-                delay: 1500, // Wait 1.5 seconds before fading
-                onComplete: () => {
-                    this.playedCardPlayer?.destroy();
-                    this.playedCardOpponent?.destroy();
-                    this.playedCardPlayer = undefined;
-                    this.playedCardOpponent = undefined;
-                }
-            });
-        }
-
-        // Display newly played cards if there are actions from the previous state
-        const lastActions = this.registry.get('lastActions');
-        if (lastActions && lastActions.length > 0) {
-            console.log('lastActions found:', lastActions);
-            const playerAction = lastActions.find(a => a.playerId === clientId);
-            const opponentAction = lastActions.find(a => a.playerId !== clientId);
-
-            if (playerAction) {
-                console.log('Displaying player action', playerAction.cardTemplateId);
-                this.playedCardPlayer = this.displayPlayedCard(playerAction.cardTemplateId, 'player');
-            }
-            if (opponentAction) {
-                console.log('Displaying opponent action', opponentAction.cardTemplateId);
-                this.playedCardOpponent = this.displayPlayedCard(opponentAction.cardTemplateId, 'opponent');
-            }
-        } else {
-            console.log('No lastActions found or empty.');
-        }
+  update() {
+    // Game logic that runs every frame (if needed)
+    const currentLastActions = this.registry.get('lastActions');
+    if (currentLastActions !== this.lastObservedLastActions) {
+        console.log('Update: lastActions changed to:', currentLastActions);
+        this.lastObservedLastActions = currentLastActions;
     }
   }
 
   private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent'): Phaser.GameObjects.Image {
     console.log(`Displaying card ${templateId} for ${playerType}`);
     const { width, height } = this.scale;
-    
-    // Initial positions (conceptual hand area)
-    const startX = width / 2;
-    const startY = playerType === 'player' ? height + 100 : -100; // Off-screen bottom or top
 
-    // Target position (center of the screen)
-    const targetX = width / 2;
+    const targetX = playerType === 'player' ? width / 2 - 100 : width / 2 + 100;
     const targetY = height / 2;
 
-    // Create card image (initially face down)
-    const cardImage = this.add.image(startX, startY, 'card_back')
-      .setScale(0.5) // Adjust scale as needed
+    // Start with the back of the card, slightly scaled up and transparent
+    const cardImage = this.add.image(targetX, targetY, 'card_back')
+      .setScale(0.55)
       .setAlpha(0);
 
-    // Tween for movement and fade-in
+    // Fade in the card back
     this.tweens.add({
       targets: cardImage,
-      x: targetX,
-      y: targetY,
       alpha: 1,
-      duration: 500, // Movement duration
+      duration: 300,
       ease: 'Power2',
       onComplete: () => {
-        // Flip animation after reaching center
+        // After fade in, start the flip
         this.tweens.add({
           targets: cardImage,
-          scaleX: 0, // Shrink to 0 width
+          scaleX: 0,
+          duration: 200,
           ease: 'Linear',
-          duration: 250,
           onComplete: () => {
-            cardImage.setTexture(templateId); // Change texture in the middle of the flip
+            // At the point of being invisible, switch the texture
+            cardImage.setTexture(templateId);
+            // Then, flip it back to normal scale
             this.tweens.add({
               targets: cardImage,
-              scaleX: 0.5, // Expand back to original width
-              ease: 'Linear',
-              duration: 250,
+              scaleX: 0.5,
+              duration: 200,
+              ease: 'Linear'
             });
-          },
+          }
         });
-      },
+      }
     });
 
     return cardImage;
@@ -230,20 +230,20 @@ export class MainGameScene extends Phaser.Scene {
   private showPropertyChange(change: number, playerType: 'player' | 'opponent') {
     console.log(`Property change: ${change} for ${playerType}`);
     const { width, height } = this.scale;
-    const xPos = playerType === 'player' ? width / 2 + 150 : width / 2 + 150; // Near property icon
+    const xPos = playerType === 'player' ? width / 2 + 150 : width / 2 + 150;
     const yPos = playerType === 'player' ? height - 50 : 50;
 
     const changeText = this.add.text(xPos, yPos, (change > 0 ? '+' : '') + change, {
       fontSize: '20px',
-      color: change > 0 ? '#00ff00' : '#ff0000', // Green for gain, red for loss
+      color: change > 0 ? '#00ff00' : '#ff0000',
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(0.5);
 
     this.tweens.add({
       targets: changeText,
-      y: yPos - 30, // Move up
-      alpha: 0, // Fade out
+      y: yPos - 30,
+      alpha: 0,
       duration: 1000,
       ease: 'Power1',
       onComplete: () => {

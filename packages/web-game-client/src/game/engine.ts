@@ -30,9 +30,15 @@ export class GameEngine {
   public applyAction(player1Action: Action | null, player2Action: Action | null): GameState {
     if (this.state.phase === 'GAME_OVER') return this.getState(); // Guard clause
 
-    const resolvedActions = this.resolveActions(player1Action, player2Action);
-    this.state.lastActions = resolvedActions; // Store resolved actions
-    this.checkWinCondition();
+    // Create a deep copy of the state to work with, ensuring immutability.
+    const newState = this.getState();
+
+    const resolvedActions = this.resolveActions(newState, player1Action, player2Action);
+    newState.lastActions = resolvedActions; // Store resolved actions
+    
+    this.checkWinCondition(newState);
+
+    this.state = newState; // Update the engine's state to the new state.
     return this.getState();
   }
 
@@ -108,43 +114,46 @@ export class GameEngine {
     }
   }
 
-  private resolveActions(player1Action: Action | null, player2Action: Action | null): ResolvedAction[] {
-    this.state.phase = 'RESOLUTION';
+  private resolveActions(state: GameState, player1Action: Action | null, player2Action: Action | null): ResolvedAction[] {
+    state.phase = 'RESOLUTION';
     const resolved: ResolvedAction[] = [];
 
-    const player1 = this.state.players.find(p => p.playerId === player1Action?.playerId);
-    const player2 = this.state.players.find(p => p.playerId === player2Action?.playerId);
+    const player1 = state.players.find(p => p.playerId === player1Action?.playerId);
+    const player2 = state.players.find(p => p.playerId === player2Action?.playerId);
 
     if (!player1 || !player2) return [];
 
     const getCardInfo = (player: PlayerState, action: Action | null) => {
-      if (!action) return { card: undefined, template: undefined };
-      const card = player.hand.find(c => c.id === action.cardId);
-      const template = card ? this.getCardTemplate(card.templateId) : undefined;
-      return { card, template };
+        if (!action) return { card: undefined, template: undefined };
+        const card = player.hand.find(c => c.id === action.cardId);
+        const template = card ? this.getCardTemplate(card.templateId) : undefined;
+        return { card, template };
     };
 
     const { card: p1Card, template: p1Template } = getCardInfo(player1, player1Action);
     const { card: p2Card, template: p2Template } = getCardInfo(player2, player2Action);
 
-    const processPlay = (player: PlayerState, card: Card, template: CardTemplate) => {
-      if (player.funds >= template.cost) {
-        player.funds -= template.cost;
-        player.hand = player.hand.filter(c => c.id !== card.id);
-        player.discard.push(card);
-        resolved.push({ playerId: player.playerId, cardTemplateId: template.templateId });
-        return true;
-      }
-      return false;
-    };
+    // Step 1: Determine what was played, pay costs, and record the play.
+    const p1Played = p1Card && p1Template && player1.funds >= p1Template.cost;
+    const p2Played = p2Card && p2Template && player2.funds >= p2Template.cost;
 
-    const p1Played = p1Card && p1Template ? processPlay(player1, p1Card, p1Template) : false;
-    const p2Played = p2Card && p2Template ? processPlay(player2, p2Card, p2Template) : false;
+    if (p1Played) {
+        player1.funds -= p1Template!.cost;
+        player1.hand = player1.hand.filter(c => c.id !== p1Card!.id);
+        player1.discard.push(p1Card!);
+        resolved.push({ playerId: player1.playerId, cardTemplateId: p1Template!.templateId });
+    }
+    if (p2Played) {
+        player2.funds -= p2Template!.cost;
+        player2.hand = player2.hand.filter(c => c.id !== p2Card!.id);
+        player2.discard.push(p2Card!);
+        resolved.push({ playerId: player2.playerId, cardTemplateId: p2Template!.templateId });
+    }
 
+    // Step 2: Resolve conflicts and apply effects based on played cards.
     const p1EffectiveTemplate = p1Played ? p1Template : undefined;
     const p2EffectiveTemplate = p2Played ? p2Template : undefined;
 
-    // --- Conflict Resolution ---
     const isP1Acquire = p1EffectiveTemplate?.type === 'ACQUIRE';
     const isP2Acquire = p2EffectiveTemplate?.type === 'ACQUIRE';
     const isP1Defend = p1EffectiveTemplate?.type === 'DEFEND';
@@ -152,40 +161,40 @@ export class GameEngine {
     const isP1Fraud = p1EffectiveTemplate?.type === 'FRAUD';
     const isP2Fraud = p2EffectiveTemplate?.type === 'FRAUD';
 
-    let p1Effect = true;
-    let p2Effect = true;
+    let p1Effect = p1Played; // An effect can only happen if the card was played.
+    let p2Effect = p2Played;
 
     if (isP1Acquire && isP2Acquire) {
-      p1Effect = false; p2Effect = false;
+        p1Effect = false; p2Effect = false;
     } else if (isP1Acquire && isP2Defend) {
-      p1Effect = false;
+        p1Effect = false;
     } else if (isP1Acquire && isP2Fraud) {
-      p1Effect = false;
-      this.applyCardEffect(player2, p2Card!, player1); // P2 Fraud effect
+        p1Effect = false;
+        this.applyCardEffect(player2, p2Card!, player1); // P2 Fraud effect applies
     } else if (isP2Acquire && isP1Defend) {
-      p2Effect = false;
+        p2Effect = false;
     } else if (isP2Acquire && isP1Fraud) {
-      p2Effect = false;
-      this.applyCardEffect(player1, p1Card!, player2); // P1 Fraud effect
+        p2Effect = false;
+        this.applyCardEffect(player1, p1Card!, player2); // P1 Fraud effect applies
     }
 
-    // Apply non-countered, non-fraud effects
-    if (p1Effect && p1Card && p1EffectiveTemplate && p1EffectiveTemplate.type !== 'FRAUD' && p1EffectiveTemplate.type !== 'DEFEND') {
-      this.applyCardEffect(player1, p1Card, player2);
+    // Apply standard, non-countered, non-fraud effects
+    if (p1Effect && p1EffectiveTemplate && p1EffectiveTemplate.type !== 'FRAUD' && p1EffectiveTemplate.type !== 'DEFEND') {
+        this.applyCardEffect(player1, p1Card!, player2);
     }
-    if (p2Effect && p2Card && p2EffectiveTemplate && p2EffectiveTemplate.type !== 'FRAUD' && p2EffectiveTemplate.type !== 'DEFEND') {
-      this.applyCardEffect(player2, p2Card, player1);
+    if (p2Effect && p2EffectiveTemplate && p2EffectiveTemplate.type !== 'FRAUD' && p2EffectiveTemplate.type !== 'DEFEND') {
+        this.applyCardEffect(player2, p2Card!, player1);
     }
     
     return resolved;
   }
 
-  private checkWinCondition(): void {
-    const p1Lost = this.state.players[0].properties <= 0;
-    const p2Lost = this.state.players[1].properties <= 0;
+  private checkWinCondition(state: GameState): void {
+    const p1Lost = state.players[0].properties <= 0;
+    const p2Lost = state.players[1].properties <= 0;
 
     if (p1Lost || p2Lost) {
-      this.state.phase = 'GAME_OVER';
+      state.phase = 'GAME_OVER';
       console.log('Game Over');
     }
   }
