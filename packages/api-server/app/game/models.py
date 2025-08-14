@@ -1,41 +1,42 @@
 # packages/api-server/app/game/models.py
 
-import uuid
 from pydantic import BaseModel, Field
-from typing import List, Dict
+from typing import List, Literal
 
-# --- Deck Management Models ---
-
-class CardInDeck(BaseModel):
-    templateId: str
-    count: int
-
-class Deck(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    cards: List[CardInDeck]
-
-# --- Game Logic Models (mirroring types.ts) ---
-
-class Action(BaseModel):
-    playerId: str
-    cardId: str
+# --- Game Logic Models (mirroring web-game-client/src/types.ts) ---
 
 class Card(BaseModel):
     id: str
     templateId: str
 
+class CardTemplate(BaseModel):
+    templateId: str
+    name: str
+    cost: int
+    description: str | None = None
+    type: Literal['GAIN_FUNDS', 'ACQUIRE', 'DEFEND', 'FRAUD']
+    imageFile: str | None = None
+
 class PlayerState(BaseModel):
     playerId: str
     funds: int
     properties: int
-    hand: List[Card] = []
-    deck: List[Card] = []
-    discard: List[Card] = []
+    hand: List[Card] = Field(default_factory=list)
+    deck: List[Card] = Field(default_factory=list)
+    discard: List[Card] = Field(default_factory=list)
+
+class Action(BaseModel):
+    playerId: str
+    cardId: str
+
+class ResolvedAction(BaseModel):
+    playerId: str
+    cardTemplateId: str
 
 class GameState(BaseModel):
     matchId: str
     turn: int
     players: List[PlayerState]
-    phase: str # 'DRAW' | 'ACTION' | 'RESOLUTION' | 'GAME_OVER'
-    lastActions: List[Dict] = [] # Simplified for now
+    phase: Literal['DRAW', 'ACTION', 'RESOLUTION', 'GAME_OVER']
+    lastActions: List[ResolvedAction] = Field(default_factory=list)
+    log: List[str] = Field(default_factory=list)

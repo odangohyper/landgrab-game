@@ -33,7 +33,7 @@
 | 22. GitHub Actions CIワークフローで実施するテストカバレージの最適化 | 済 | GEMINIAI |
 
 | **フェーズ3以降のタスク (サーバーサイドエンジン)** | | |
-| 23a. Python版データ構造の定義 (`models.py`) | 未 | GEMINIAI |
+| 23a. Python版データ構造の定義 (`models.py`) | 済 | GEMINIAI |
 | 23b. Python版カード効果関数の実装 | 未 | GEMINIAI |
 | 23c. Python版ゲームエンジン本体の実装 (`engine.py`) | 未 | GEMINIAI |
 | 23d. Python版ゲームエンジンのユニットテスト作成 | 未 | GEMINIAI |
