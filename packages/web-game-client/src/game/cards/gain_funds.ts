@@ -9,7 +9,6 @@ import { PlayerState } from '../../types';
  * 資金が2増加します。
  * @param player 効果を適用するプレイヤーの状態
  */
-export const applyGainFunds = (player: PlayerState): string => {
+export const applyGainFunds = (player: PlayerState): void => {
   player.funds += 2;
-  return `プレイヤーは「資金集め」をプレイし、資金を2獲得しました。`;
 };

@@ -10,12 +10,9 @@ import { PlayerState } from '../../types';
  * @param player 効果を適用するプレイヤーの状態
  * @param opponent 相手プレイヤーの状態
  */
-export const applyAcquire = (player: PlayerState, opponent: PlayerState): string => {
+export const applyAcquire = (player: PlayerState, opponent: PlayerState): void => {
   if (opponent.properties > 0) {
     opponent.properties -= 1;
     player.properties += 1;
-    return `プレイヤーは「買収」をプレイし、相手から不動産を1つ奪いました。`;
-  } else {
-    return `プレイヤーは「買収」をプレイしましたが、相手は奪える不動産を持っていませんでした。`;
   }
 };

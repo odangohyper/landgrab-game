@@ -11,13 +11,10 @@ import { PlayerState } from '../../types';
  * @param player 詐欺カードを出したプレイヤーの状態
  * @param opponent 相手プレイヤーの状態
  */
-export const applyFraud = (player: PlayerState, opponent: PlayerState): string => {
+export const applyFraud = (player: PlayerState, opponent: PlayerState): void => {
   if (opponent.properties > 0) {
     opponent.properties -= 1;
     player.properties += 1;
-    return `プレイヤーは「詐欺」をプレイし、相手から不動産を1つ奪いました。`;
-  } else {
-    return `プレイヤーは「詐欺」をプレイしましたが、相手は奪える不動産を持っていませんでした。`;
   }
   // 相手の買収を無効化するロジックは、アクション解決フェーズで実装されます。
 };

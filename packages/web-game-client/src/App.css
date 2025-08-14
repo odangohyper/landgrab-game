@@ -199,6 +199,13 @@ body {
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
   font-size: 0.9rem;
+  color: #aaa; /* Dimmer color for old logs */
+  transition: color 0.5s ease;
+}
+
+.log-entries p.latest-log {
+  color: #f0f0f0; /* Brighter color for the latest log */
+  font-weight: bold;
 }
 
 .action-bar {

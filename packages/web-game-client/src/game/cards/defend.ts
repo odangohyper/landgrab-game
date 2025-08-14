@@ -10,6 +10,7 @@ import { PlayerState } from '../../types';
  * この関数は、買収カードの解決時に呼び出されることを想定しています。
  * @param player 防衛カードを出したプレイヤーの状態
  */
-export const applyDefend = (player: PlayerState): string => {
-  return `プレイヤーは「防衛」をプレイしました。相手の「買収」は無効化されます。`;
+export const applyDefend = (player: PlayerState): void => {
+  // The logic to nullify the opponent's ACQUIRE is handled in the engine's resolveActions phase.
+  // This function remains as a placeholder for potential future defense-specific effects.
 };

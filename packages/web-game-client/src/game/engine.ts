@@ -51,7 +51,7 @@ export class GameEngine {
     this.state.log.push(`--- ターン ${this.state.turn} ---`);
 
     this.state.players.forEach(player => {
-      player.funds += 1;
+      
       const cardsToDraw = 3 - player.hand.length;
       if (cardsToDraw > 0) {
         this.drawCards(player, cardsToDraw);
@@ -108,17 +108,11 @@ export class GameEngine {
     const cardTemplate = this.getCardTemplate(card.templateId);
     if (!cardTemplate) return;
 
-    let logMessage: string = '';
-
     switch (cardTemplate.type) {
-      case 'GAIN_FUNDS': logMessage = applyGainFunds(player); break;
-      case 'ACQUIRE': logMessage = applyAcquire(player, opponent); break;
-      case 'DEFEND': logMessage = applyDefend(player); break;
-      case 'FRAUD': logMessage = applyFraud(player, opponent); break;
-    }
-
-    if (logMessage) {
-      state.log.push(logMessage);
+      case 'GAIN_FUNDS': applyGainFunds(player); break;
+      case 'ACQUIRE': applyAcquire(player, opponent); break;
+      case 'DEFEND': applyDefend(player); break;
+      case 'FRAUD': applyFraud(player, opponent); break;
     }
   }
 
@@ -129,10 +123,8 @@ export class GameEngine {
     const player1 = state.players.find(p => p.playerId === player1Action?.playerId);
     const player2 = state.players.find(p => p.playerId === player2Action?.playerId);
 
-    if (!player1 || !player2) return [];
-
-    const getCardInfo = (player: PlayerState, action: Action | null) => {
-        if (!action) return { card: undefined, template: undefined };
+    const getCardInfo = (player: PlayerState | undefined, action: Action | null) => {
+        if (!player || !action) return { card: undefined, template: undefined };
         const card = player.hand.find(c => c.id === action.cardId);
         const template = card ? this.getCardTemplate(card.templateId) : undefined;
         return { card, template };
@@ -142,20 +134,22 @@ export class GameEngine {
     const { card: p2Card, template: p2Template } = getCardInfo(player2, player2Action);
 
     // Step 1: Determine what was played, pay costs, and record the play.
-    const p1Played = p1Card && p1Template && player1.funds >= p1Template.cost;
-    const p2Played = p2Card && p2Template && player2.funds >= p2Template.cost;
+    const p1Played = p1Card && p1Template && player1 && player1.funds >= p1Template.cost;
+    const p2Played = p2Card && p2Template && player2 && player2.funds >= p2Template.cost;
 
     if (p1Played) {
         player1.funds -= p1Template!.cost;
         player1.hand = player1.hand.filter(c => c.id !== p1Card!.id);
         player1.discard.push(p1Card!);
         resolved.push({ playerId: player1.playerId, cardTemplateId: p1Template!.templateId });
+        state.log.push(`プレイヤーは「${p1Template!.name}」をプレイした`);
     }
     if (p2Played) {
         player2.funds -= p2Template!.cost;
         player2.hand = player2.hand.filter(c => c.id !== p2Card!.id);
         player2.discard.push(p2Card!);
         resolved.push({ playerId: player2.playerId, cardTemplateId: p2Template!.templateId });
+        state.log.push(`対戦相手は「${p2Template!.name}」をプレイした`);
     }
 
     // Step 2: Resolve conflicts and apply effects based on played cards.
@@ -169,8 +163,8 @@ export class GameEngine {
     const isP1Fraud = p1EffectiveTemplate?.type === 'FRAUD';
     const isP2Fraud = p2EffectiveTemplate?.type === 'FRAUD';
 
-    let p1Effect = p1Played; // An effect can only happen if the card was played.
-    let p2Effect = p2Played;
+    let p1Effect = !!p1Played;
+    let p2Effect = !!p2Played;
 
     if (isP1Acquire && isP2Acquire) {
         p1Effect = false; p2Effect = false;
@@ -178,20 +172,24 @@ export class GameEngine {
         p1Effect = false;
     } else if (isP1Acquire && isP2Fraud) {
         p1Effect = false;
-        this.applyCardEffect(state, player2, p2Card!, player1); // P2 Fraud effect applies
+        const opponentOfP2 = state.players.find(p => p.playerId !== player2!.playerId)!;
+        this.applyCardEffect(state, player2!, p2Card!, opponentOfP2);
     } else if (isP2Acquire && isP1Defend) {
         p2Effect = false;
     } else if (isP2Acquire && isP1Fraud) {
         p2Effect = false;
-        this.applyCardEffect(state, player1, p1Card!, player2); // P1 Fraud effect applies
+        const opponentOfP1 = state.players.find(p => p.playerId !== player1!.playerId)!;
+        this.applyCardEffect(state, player1!, p1Card!, opponentOfP1);
     }
 
     // Apply standard, non-countered, non-fraud effects
     if (p1Effect && p1EffectiveTemplate && p1EffectiveTemplate.type !== 'FRAUD' && p1EffectiveTemplate.type !== 'DEFEND') {
-        this.applyCardEffect(state, player1, p1Card!, player2);
+        const opponentOfP1 = state.players.find(p => p.playerId !== player1!.playerId)!;
+        this.applyCardEffect(state, player1!, p1Card!, opponentOfP1);
     }
     if (p2Effect && p2EffectiveTemplate && p2EffectiveTemplate.type !== 'FRAUD' && p2EffectiveTemplate.type !== 'DEFEND') {
-        this.applyCardEffect(state, player2, p2Card!, player1);
+        const opponentOfP2 = state.players.find(p => p.playerId !== player2!.playerId)!;
+        this.applyCardEffect(state, player2!, p2Card!, opponentOfP2);
     }
     
     return resolved;

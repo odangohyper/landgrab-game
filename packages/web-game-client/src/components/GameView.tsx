@@ -270,10 +270,10 @@ const GameView: React.FC<GameViewProps> = () => {
       <div className="player-area">
         <div className="bottom-panel">
           <div className="game-log-area">
-            <h3>Game Log</h3>
+            
             <div className="log-entries">
               {gameState.log.slice().reverse().map((entry, index) => (
-                <p key={index}>{entry}</p>
+                <p key={index} className={index === 0 ? 'latest-log' : ''}>{entry}</p>
               ))}
             </div>
           </div>
