@@ -176,17 +176,29 @@ body {
 }
 
 .game-log-area {
-  width: 370px; /* Fixed width for the log area */
+  width: 250px; /* Fixed width for the log area */
   background-color: #3a3a3a;
   border-radius: 8px;
-  padding: 10px;
+  padding: 20px;
   box-sizing: border-box;
   color: #f0f0f0;
-  /* In the future, you might add:
-  overflow-y: auto;
+  overflow-y: auto; /* Enable scrolling for logs */
   display: flex;
-  flex-direction: column-reverse;
-  */
+  flex-direction: column-reverse; /* Newest logs at the bottom, but rendered top-down */
+}
+
+.log-entries {
+  display: flex;
+  flex-direction: column; /* Arrange log entries vertically */
+  gap: 5px;
+}
+
+.log-entries p {
+  margin: 0;
+  padding: 5px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 0.9rem;
 }
 
 .action-bar {

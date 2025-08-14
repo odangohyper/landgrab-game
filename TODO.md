@@ -40,6 +40,7 @@
 | 27. UI/UXとPhaserアニメーションの表示設定 | 済 | GEMINIAI |
 | 28. UI/UXとPhaserアニメーションの洗練 | 未 | GEMINIAI |
 | 29. タイトル画面の実装 | 未 | GEMINIAI |
+| 32. ゲームログ表示の実装 | 未 | GEMINIAI |
 
 | **優先順位の低いタスク** | | |
 | 30. AudioContext警告の解消と音声機能の追加 | 未 | GEMINIAI |

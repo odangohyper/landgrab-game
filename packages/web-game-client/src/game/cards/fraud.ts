@@ -11,13 +11,13 @@ import { PlayerState } from '../../types';
  * @param player 詐欺カードを出したプレイヤーの状態
  * @param opponent 相手プレイヤーの状態
  */
-export const applyFraud = (player: PlayerState, opponent: PlayerState) => {
+export const applyFraud = (player: PlayerState, opponent: PlayerState): string => {
   if (opponent.properties > 0) {
     opponent.properties -= 1;
     player.properties += 1;
-    console.log(`Player ${player.playerId} used FRAUD. Took 1 property from ${opponent.playerId}.`);
+    return `${player.playerId} played FRAUD and took 1 property from ${opponent.playerId}.`;
   } else {
-    console.log(`Player ${player.playerId} used FRAUD, but ${opponent.playerId} has no properties to take.`);
+    return `${player.playerId} played FRAUD, but ${opponent.playerId} has no properties to take.`;
   }
   // 相手の買収を無効化するロジックは、アクション解決フェーズで実装されます。
 };

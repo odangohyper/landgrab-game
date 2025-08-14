@@ -10,12 +10,12 @@ import { PlayerState } from '../../types';
  * @param player 効果を適用するプレイヤーの状態
  * @param opponent 相手プレイヤーの状態
  */
-export const applyAcquire = (player: PlayerState, opponent: PlayerState) => {
+export const applyAcquire = (player: PlayerState, opponent: PlayerState): string => {
   if (opponent.properties > 0) {
     opponent.properties -= 1;
     player.properties += 1;
-    console.log(`Player ${player.playerId} used ACQUIRE. Took 1 property from ${opponent.playerId}.`);
+    return `${player.playerId} played ACQUIRE and took 1 property from ${opponent.playerId}.`;
   } else {
-    console.log(`Player ${player.playerId} used ACQUIRE, but ${opponent.playerId} has no properties to acquire.`);
+    return `${player.playerId} played ACQUIRE, but ${opponent.playerId} has no properties to acquire.`;
   }
 };

@@ -270,8 +270,12 @@ const GameView: React.FC<GameViewProps> = () => {
       <div className="player-area">
         <div className="bottom-panel">
           <div className="game-log-area">
-            {/* Game log content will go here */}
-            <p>Game Log</p>
+            <h3>Game Log</h3>
+            <div className="log-entries">
+              {gameState.log.slice().reverse().map((entry, index) => (
+                <p key={index}>{entry}</p>
+              ))}
+            </div>
           </div>
           <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
 

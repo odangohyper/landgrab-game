@@ -48,6 +48,7 @@ export class GameEngine {
     this.state.turn++;
     this.state.phase = 'DRAW';
     this.state.lastActions = []; // Clear last actions at the start of a new turn
+    this.state.log.push(`--- Turn ${this.state.turn} ---`);
 
     this.state.players.forEach(player => {
       player.funds += 1;
@@ -85,6 +86,7 @@ export class GameEngine {
       players: [createPlayer(player1Id), createPlayer(player2Id)],
       phase: 'DRAW',
       lastActions: [],
+      log: ['Game Start!'],
     };
   }
 
@@ -102,15 +104,21 @@ export class GameEngine {
     }
   }
 
-  private applyCardEffect(player: PlayerState, card: Card, opponent: PlayerState): void {
+  private applyCardEffect(state: GameState, player: PlayerState, card: Card, opponent: PlayerState): void {
     const cardTemplate = this.getCardTemplate(card.templateId);
     if (!cardTemplate) return;
 
+    let logMessage: string = '';
+
     switch (cardTemplate.type) {
-      case 'GAIN_FUNDS': applyGainFunds(player); break;
-      case 'ACQUIRE': applyAcquire(player, opponent); break;
-      case 'DEFEND': applyDefend(player); break;
-      case 'FRAUD': applyFraud(player, opponent); break;
+      case 'GAIN_FUNDS': logMessage = applyGainFunds(player); break;
+      case 'ACQUIRE': logMessage = applyAcquire(player, opponent); break;
+      case 'DEFEND': logMessage = applyDefend(player); break;
+      case 'FRAUD': logMessage = applyFraud(player, opponent); break;
+    }
+
+    if (logMessage) {
+      state.log.push(logMessage);
     }
   }
 
@@ -170,20 +178,20 @@ export class GameEngine {
         p1Effect = false;
     } else if (isP1Acquire && isP2Fraud) {
         p1Effect = false;
-        this.applyCardEffect(player2, p2Card!, player1); // P2 Fraud effect applies
+        this.applyCardEffect(state, player2, p2Card!, player1); // P2 Fraud effect applies
     } else if (isP2Acquire && isP1Defend) {
         p2Effect = false;
     } else if (isP2Acquire && isP1Fraud) {
         p2Effect = false;
-        this.applyCardEffect(player1, p1Card!, player2); // P1 Fraud effect applies
+        this.applyCardEffect(state, player1, p1Card!, player2); // P1 Fraud effect applies
     }
 
     // Apply standard, non-countered, non-fraud effects
     if (p1Effect && p1EffectiveTemplate && p1EffectiveTemplate.type !== 'FRAUD' && p1EffectiveTemplate.type !== 'DEFEND') {
-        this.applyCardEffect(player1, p1Card!, player2);
+        this.applyCardEffect(state, player1, p1Card!, player2);
     }
     if (p2Effect && p2EffectiveTemplate && p2EffectiveTemplate.type !== 'FRAUD' && p2EffectiveTemplate.type !== 'DEFEND') {
-        this.applyCardEffect(player2, p2Card!, player1);
+        this.applyCardEffect(state, player2, p2Card!, player1);
     }
     
     return resolved;

@@ -29,7 +29,8 @@ export interface GameState {
   turn: number;
   players: PlayerState[];
   phase: 'DRAW' | 'ACTION' | 'RESOLUTION' | 'GAME_OVER';
-  lastActions?: ResolvedAction[]; // Actions from the resolved turn
+  lastActions: ResolvedAction[];
+  log: string[];
 }
 
 export interface Action {

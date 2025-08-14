@@ -10,7 +10,6 @@ import { PlayerState } from '../../types';
  * この関数は、買収カードの解決時に呼び出されることを想定しています。
  * @param player 防衛カードを出したプレイヤーの状態
  */
-export const applyDefend = (player: PlayerState) => {
-  console.log(`Player ${player.playerId} used DEFEND. Opponent's ACQUIRE will be nullified.`);
-  // 実際の無効化ロジックは、アクション解決フェーズで実装されます。
+export const applyDefend = (player: PlayerState): string => {
+  return `${player.playerId} played DEFEND. Opponent's ACQUIRE will be nullified.`;
 };

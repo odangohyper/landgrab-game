@@ -9,7 +9,7 @@ import { PlayerState } from '../../types';
  * 資金が2増加します。
  * @param player 効果を適用するプレイヤーの状態
  */
-export const applyGainFunds = (player: PlayerState) => {
+export const applyGainFunds = (player: PlayerState): string => {
   player.funds += 2;
-  console.log(`Player ${player.playerId} used GAIN_FUNDS. Funds: ${player.funds}`);
+  return `${player.playerId} played GAIN_FUNDS and gained 2 funds.`;
 };
