@@ -118,7 +118,7 @@ body {
 #phaser-game-container {
   width: 700px;
   height: 500px;
-  margin-left: 100px;
+  margin-left: 0px;
   border-radius: 8px;
   box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
   border: 2px solid rgba(0, 255, 255, 0.7);
@@ -131,7 +131,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   padding: 1rem;
-  min-width: 200px;
+  min-width: 160px;
   text-align: center;
 }
 
@@ -149,7 +149,7 @@ body {
 
 .player-hud {
   position: absolute;
-  bottom: 20px;
+  bottom: 320px;
   right: 20px;
 }
 
@@ -162,12 +162,23 @@ body {
   background-color: #2a2a2a;
   /* Removed padding: 1rem; */
   border-radius: 8px;
-  /* Removed margin-bottom: 1rem; */
+  padding: 0 1rem 1rem 1rem; /* Add padding to sides and bottom */
+  box-sizing: border-box;
 }
 
+.bottom-panel {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch; /* Key for same height */
+  width: 100%;
+  gap: 1rem;
+}
 
 .action-bar {
-  margin-bottom: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0; /* Remove margin from here */
 }
 
 .play-button {
@@ -201,13 +212,14 @@ body {
 
 /* HandView Container */
 .hand-container {
+  flex-grow: 1; /* Make the hand container expand */
   display: flex;
   gap: 15px;
   padding: 20px;
   background-color: #3a3a3a;
   border-radius: 8px;
   margin-top: 1rem;
-  justify-content: center;
+  justify-content: right;
   flex-wrap: wrap; /* Allow cards to wrap to next line */
 }
 
@@ -266,7 +278,7 @@ body {
 
 .card-image {
   width: 100%;
-  height: auto;
+  height: 60px;
   flex-grow: 1;
   object-fit: contain; /* Ensure image fits within bounds */
   border-radius: 4px; /* Slightly rounded image corners */

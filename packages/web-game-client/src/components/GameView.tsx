@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GameEngine } from '../game/engine';
+import { MainGameScene } from '../game/scenes/MainGameScene';
 import { GameState, PlayerState, Card, Action, CardTemplate } from '../types';
 import HandView from './HandView';
 import { launch } from '../game/PhaserGame';
@@ -40,11 +41,7 @@ const GameView: React.FC<GameViewProps> = () => {
       const fetchedCardTemplates = await fetchCardTemplates('v1');
       setCardTemplates(fetchedCardTemplates);
 
-      let currentMatchId = localStorage.getItem('currentMatchId');
-      if (!currentMatchId) {
-        currentMatchId = await createMatch();
-        localStorage.setItem('currentMatchId', currentMatchId);
-      }
+      const currentMatchId = await createMatch();
       setMatchId(currentMatchId);
 
       if (!engineRef.current && Object.keys(fetchedCardTemplates).length > 0) {
@@ -184,32 +181,13 @@ const GameView: React.FC<GameViewProps> = () => {
       // If lastActions exists in the new state, explicitly set it.
       // This triggers the 'changedata-lastActions' event in Phaser.
       if (gameState.lastActions && gameState.lastActions.length > 0) {
-        const currentLastActions = JSON.stringify(gameState.lastActions.map(a => ({
-            playerId: a.playerId,
-            cardTemplateId: a.cardTemplateId
-        })).sort((a, b) => a.playerId.localeCompare(b.playerId))); // 順序を正規化
-
-        const lastProcessedActions = gameRef.current.registry.get('lastProcessedActionsString');
-
-        if (lastProcessedActions !== currentLastActions) {
-          console.log('GameView: Found new lastActions, setting to registry:', gameState.lastActions);
-          gameRef.current.registry.set('lastActions', gameState.lastActions);
-          gameRef.current.registry.set('lastProcessedActionsString', currentLastActions); // 文字列として保存
-
-          // 短い遅延を追加
-          // Phaserが値を読み取るための時間を与える
-          setTimeout(() => {
-            console.log('useEffect[gameState]: setTimeout triggered after setting lastActions.'); // 追加ログ
-          }, 500); // 500msの遅延
+        const scene = gameRef.current?.scene.getScene('MainGameScene') as MainGameScene;
+        if (scene) {
+          console.log('GameView: Calling scene.displayTurnActions with:', gameState.lastActions);
+          scene.displayTurnActions(gameState.lastActions);
         } else {
-            console.log('GameView: lastActions are the same as last processed, skipping registry update.');
+          console.error('MainGameScene not found');
         }
-      } else if (gameRef.current.registry.get('lastActions') !== null) {
-          // lastActionsが空になった場合、Phaserのregistryからもクリアする
-          // ただし、これはPhaser側でクリアされるはずなので、念のため
-          console.log('GameView: lastActions is empty or game over, clearing Phaser registry lastActions.');
-          gameRef.current.registry.set('lastActions', null);
-          gameRef.current.registry.set('lastProcessedActionsString', null);
       }
     }
   }, [gameState, cardTemplates, clientId]);
@@ -270,18 +248,18 @@ const GameView: React.FC<GameViewProps> = () => {
       {/* Opponent HUD */}
       {opponentState && (
         <div className="hud opponent-hud">
-          <h2>Opponent</h2>
-          <p>Funds: {opponentState.funds}</p>
-          <p>Properties: {opponentState.properties}</p>
+          <h2>対戦相手</h2>
+          <p>資金: {opponentState.funds}</p>
+          <p>不動産: {opponentState.properties}</p>
         </div>
       )}
 
       {/* Player HUD */}
       {currentPlayerState && (
         <div className="hud player-hud">
-          <h2>Player: You</h2>
-          <p>Funds: {currentPlayerState.funds}</p>
-          <p>Properties: {currentPlayerState.properties}</p>
+          <h2>プレイヤー</h2>
+          <p>資金: {currentPlayerState.funds}</p>
+          <p>不動産: {currentPlayerState.properties}</p>
         </div>
       )}
 
@@ -290,14 +268,16 @@ const GameView: React.FC<GameViewProps> = () => {
       </div>
 
       <div className="player-area">
-        <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
+        <div className="bottom-panel">
+          <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
 
-        <div className="action-bar">
-          {gameState.phase !== 'GAME_OVER' && (
-            <button onClick={handlePlayTurn} disabled={!selectedCardId} className="play-button">
-              Play Turn
-            </button>
-          )}
+          <div className="action-bar">
+            {gameState.phase !== 'GAME_OVER' && (
+              <button onClick={handlePlayTurn} disabled={!selectedCardId} className="play-button">
+                Play Turn
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

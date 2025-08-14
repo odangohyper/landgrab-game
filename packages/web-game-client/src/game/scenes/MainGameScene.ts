@@ -22,20 +22,11 @@ export class MainGameScene extends Phaser.Scene {
   init() {
     // Listen for general data changes for HUD updates
     this.registry.events.on('changedata-gameState', this.updateDisplay, this);
-    // Listen specifically for when lastActions are set
-    this.registry.events.on('changedata-lastActions', this.handleActionsResolved, this);
     // Listen for the game over event from React
     this.game.events.on('gameOver', this.displayGameOverMessage, this);
   }
 
   preload() {
-    // Dynamically load card images based on templates from the registry
-    const cardTemplates: { [templateId: string]: CardTemplate } = this.registry.get('cardTemplates') || {};
-    for (const templateId in cardTemplates) {
-      const template = cardTemplates[templateId];
-      this.load.image(template.templateId, `images/cards/${template.templateId}.jpg`);
-    }
-
     // Load placeholder icons
     this.load.image('coin_icon', 'images/icons/coin.png');
     this.load.image('property_icon', 'images/icons/property.png');
@@ -48,18 +39,17 @@ export class MainGameScene extends Phaser.Scene {
     this.updateDisplay();
   }
 
-  private handleActionsResolved(parent: any, value: ResolvedAction[] | null, previousValue: ResolvedAction[] | null) { // 引数を修正
-    console.log('--- handleActionsResolved START ---');
-    console.log('Parameter "value" (new lastActions):', value); // value をログ出力
-    console.log('Registry "lastActions" at start (direct get):', this.registry.get('lastActions')); // 念のため直接取得もログ出力
+  public displayTurnActions(actions: ResolvedAction[] | null) { // 引数を修正
+    console.log('--- displayTurnActions START ---');
+    console.log('Parameter "actions":', actions); // value をログ出力
 
-    const currentActions = value; // value が新しい lastActions の値
+    const currentActions = actions; // value が新しい lastActions の値
 
-    console.log('handleActionsScene: Triggered with actions from registry:', currentActions); // ログを修正
+    console.log('displayTurnActions: Triggered with actions:', currentActions); // ログを修正
     const clientId: string | undefined = this.registry.get('clientId');
     if (!clientId) {
-        console.log('handleActionsResolved: clientId not found.');
-        console.log('--- handleActionsResolved END (No clientId) ---');
+        console.log('displayTurnActions: clientId not found.');
+        console.log('--- displayTurnActions END (No clientId) ---');
         return;
     }
 
@@ -211,14 +201,25 @@ export class MainGameScene extends Phaser.Scene {
           ease: 'Linear',
           onComplete: () => {
             // At the point of being invisible, switch the texture
-            cardImage.setTexture(templateId);
-            // Then, flip it back to normal scale
-            this.tweens.add({
-              targets: cardImage,
-              scaleX: 0.5,
-              duration: 200,
-              ease: 'Linear'
-            });
+            const flipCard = () => {
+              cardImage.setTexture(templateId);
+              // Then, flip it back to normal scale
+              this.tweens.add({
+                targets: cardImage,
+                scaleX: 0.5,
+                duration: 200,
+                ease: 'Linear'
+              });
+            };
+
+            // Check if the texture already exists. If not, load it.
+            if (!this.textures.exists(templateId)) {
+              this.load.image(templateId, `images/cards/${templateId}.jpg`);
+              this.load.once(`filecomplete-image-${templateId}`, flipCard);
+              this.load.start();
+            } else {
+              flipCard();
+            }
           }
         });
       }
