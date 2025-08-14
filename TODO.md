@@ -32,15 +32,19 @@
 | 21. GitHub Actions CIワークフローの構築 | 済 | GEMINIAI |
 | 22. GitHub Actions CIワークフローで実施するテストカバレージの最適化 | 済 | GEMINIAI |
 
-| **フェーズ3以降のタスク** | | |
-| 23. サーバーサイドゲームエンジンのロジック実装 | 未 | GEMINIAI |
+| **フェーズ3以降のタスク (サーバーサイドエンジン)** | | |
+| 23a. Python版データ構造の定義 (`models.py`) | 未 | GEMINIAI |
+| 23b. Python版カード効果関数の実装 | 未 | GEMINIAI |
+| 23c. Python版ゲームエンジン本体の実装 (`engine.py`) | 未 | GEMINIAI |
+| 23d. Python版ゲームエンジンのユニットテスト作成 | 未 | GEMINIAI |
+| 23e. ゲームエンジンを呼び出すAPIエンドポイント作成 | 未 | GEMINIAI |
 | 24. デッキ管理APIのデータベース接続 (Firebase) | 未 | GEMINIAI |
 | 25. デッキ構築UIとAPIの統合 | 未 | GEMINIAI |
 | 26. NPC AIの改善 (重み付け行動型) | 未 | GEMINIAI |
 | 27. UI/UXとPhaserアニメーションの表示設定 | 済 | GEMINIAI |
 | 28. UI/UXとPhaserアニメーションの洗練 | 未 | GEMINIAI |
 | 29. タイトル画面の実装 | 未 | GEMINIAI |
-| 32. ゲームログ表示の実装 | 未 | GEMINIAI |
+| 32. ゲームログ表示の実装 | 済 | GEMINIAI |
 
 | **優先順位の低いタスク** | | |
 | 30. AudioContext警告の解消と音声機能の追加 | 未 | GEMINIAI |
