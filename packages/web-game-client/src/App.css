@@ -172,6 +172,21 @@ body {
   align-items: stretch; /* Key for same height */
   width: 100%;
   gap: 1rem;
+  margin-top: 1rem; /* Add margin to the top of the whole panel */
+}
+
+.game-log-area {
+  width: 370px; /* Fixed width for the log area */
+  background-color: #3a3a3a;
+  border-radius: 8px;
+  padding: 10px;
+  box-sizing: border-box;
+  color: #f0f0f0;
+  /* In the future, you might add:
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column-reverse;
+  */
 }
 
 .action-bar {
@@ -191,6 +206,7 @@ body {
   border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.3s, transform 0.1s;
+  height: 150px;
 }
 
 .play-button:hover:not(:disabled) {
@@ -202,6 +218,7 @@ body {
   background-color: #555;
   color: #888;
   cursor: not-allowed;
+  height: 150px;
 }
 
 .game-over-message {
@@ -219,7 +236,7 @@ body {
   background-color: #3a3a3a;
   border-radius: 8px;
   margin-top: 1rem;
-  justify-content: right;
+  justify-content: center; /* Center the cards */
   flex-wrap: wrap; /* Allow cards to wrap to next line */
 }
 

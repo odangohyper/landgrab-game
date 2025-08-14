@@ -269,14 +269,16 @@ const GameView: React.FC<GameViewProps> = () => {
 
       <div className="player-area">
         <div className="bottom-panel">
+          <div className="game-log-area">
+            {/* Game log content will go here */}
+            <p>Game Log</p>
+          </div>
           <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
 
           <div className="action-bar">
-            {gameState.phase !== 'GAME_OVER' && (
-              <button onClick={handlePlayTurn} disabled={!selectedCardId} className="play-button">
-                Play Turn
-              </button>
-            )}
+            <button onClick={handlePlayTurn} disabled={!selectedCardId || gameState.phase === 'GAME_OVER'} className="play-button">
+              Play Turn
+            </button>
           </div>
         </div>
       </div>
