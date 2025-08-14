@@ -11,5 +11,5 @@ import { PlayerState } from '../../types';
  */
 export const applyGainFunds = (player: PlayerState): string => {
   player.funds += 2;
-  return `${player.playerId} played GAIN_FUNDS and gained 2 funds.`;
+  return `プレイヤーは「資金集め」をプレイし、資金を2獲得しました。`;
 };

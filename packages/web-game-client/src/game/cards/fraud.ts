@@ -15,9 +15,9 @@ export const applyFraud = (player: PlayerState, opponent: PlayerState): string =
   if (opponent.properties > 0) {
     opponent.properties -= 1;
     player.properties += 1;
-    return `${player.playerId} played FRAUD and took 1 property from ${opponent.playerId}.`;
+    return `プレイヤーは「詐欺」をプレイし、相手から不動産を1つ奪いました。`;
   } else {
-    return `${player.playerId} played FRAUD, but ${opponent.playerId} has no properties to take.`;
+    return `プレイヤーは「詐欺」をプレイしましたが、相手は奪える不動産を持っていませんでした。`;
   }
   // 相手の買収を無効化するロジックは、アクション解決フェーズで実装されます。
 };

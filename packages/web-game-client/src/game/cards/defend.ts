@@ -11,5 +11,5 @@ import { PlayerState } from '../../types';
  * @param player 防衛カードを出したプレイヤーの状態
  */
 export const applyDefend = (player: PlayerState): string => {
-  return `${player.playerId} played DEFEND. Opponent's ACQUIRE will be nullified.`;
+  return `プレイヤーは「防衛」をプレイしました。相手の「買収」は無効化されます。`;
 };

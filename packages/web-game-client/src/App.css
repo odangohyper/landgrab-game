@@ -176,10 +176,10 @@ body {
 }
 
 .game-log-area {
-  width: 250px; /* Fixed width for the log area */
+  width: 350px; /* Fixed width for the log area */
   background-color: #3a3a3a;
   border-radius: 8px;
-  padding: 20px;
+  padding: 10px;
   box-sizing: border-box;
   color: #f0f0f0;
   overflow-y: auto; /* Enable scrolling for logs */
@@ -212,7 +212,7 @@ body {
   background-color: #00ffff;
   color: #1a1a1a;
   border: none;
-  padding: 12px 24px;
+  padding: 10px;
   font-size: 1.2rem;
   font-weight: bold;
   border-radius: 8px;

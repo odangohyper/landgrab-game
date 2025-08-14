@@ -14,8 +14,8 @@ export const applyAcquire = (player: PlayerState, opponent: PlayerState): string
   if (opponent.properties > 0) {
     opponent.properties -= 1;
     player.properties += 1;
-    return `${player.playerId} played ACQUIRE and took 1 property from ${opponent.playerId}.`;
+    return `プレイヤーは「買収」をプレイし、相手から不動産を1つ奪いました。`;
   } else {
-    return `${player.playerId} played ACQUIRE, but ${opponent.playerId} has no properties to acquire.`;
+    return `プレイヤーは「買収」をプレイしましたが、相手は奪える不動産を持っていませんでした。`;
   }
 };

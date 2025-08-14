@@ -48,7 +48,7 @@ export class GameEngine {
     this.state.turn++;
     this.state.phase = 'DRAW';
     this.state.lastActions = []; // Clear last actions at the start of a new turn
-    this.state.log.push(`--- Turn ${this.state.turn} ---`);
+    this.state.log.push(`--- ターン ${this.state.turn} ---`);
 
     this.state.players.forEach(player => {
       player.funds += 1;
@@ -86,7 +86,7 @@ export class GameEngine {
       players: [createPlayer(player1Id), createPlayer(player2Id)],
       phase: 'DRAW',
       lastActions: [],
-      log: ['Game Start!'],
+      log: ['ゲーム開始！'],
     };
   }
 
@@ -203,7 +203,7 @@ export class GameEngine {
 
     if (p1Lost || p2Lost) {
       state.phase = 'GAME_OVER';
-      console.log('Game Over');
+      console.log('ゲーム終了');
     }
   }
 }
