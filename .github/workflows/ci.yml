@@ -43,7 +43,7 @@ jobs:
     # - name: Build frontend
     #   run: pnpm build --workspace web-game-client
 
-        - name: Install backend dependencies
+    - name: Install backend dependencies
       run: pip install -r packages/api-server/requirements.txt
 
     - name: Run backend tests
