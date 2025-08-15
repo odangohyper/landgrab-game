@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import { GameState, PlayerState, CardTemplate, ResolvedAction } from '../../types';
 
 export class MainGameScene extends Phaser.Scene {
-  private playedCardPlayer?: Phaser.GameObjects.Image;
-  private playedCardOpponent?: Phaser.GameObjects.Image;
+  private playedCardPlayer?: Phaser.GameObjects.Container;
+  private playedCardOpponent?: Phaser.GameObjects.Container;
 
   constructor() {
     super({ key: 'MainGameScene' });
@@ -93,34 +93,52 @@ export class MainGameScene extends Phaser.Scene {
     gameOverText.setDepth(101);
   }
 
-  private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent'): Phaser.GameObjects.Image {
+  private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent'): Phaser.GameObjects.Container {
     console.log(`Displaying card ${templateId} for ${playerType}`);
     const { width, height } = this.scale;
 
-    const targetX = playerType === 'player' ? width / 2 - 100 : width / 2 + 100;
+    const targetX = playerType === 'player' ? width / 2 + 120 : width / 2 - 120; // Swapped positions
     const targetY = height / 2;
+    
+    const cardWidth = 200;
+    const cardHeight = 400;
+    const borderWidth = 6; // Made border thicker
+    const borderColor = playerType === 'player' ? 0x00ff00 : 0xff0000; // Green for player, Red for opponent
 
-    const cardImage = this.add.image(targetX, targetY, 'card_back')
-      .setScale(0.55)
-      .setAlpha(0);
+    // Create a container to hold the card and its border
+    const cardContainer = this.add.container(targetX, targetY);
+    cardContainer.setAlpha(0);
 
+    // Create the border graphics object
+    const border = this.add.graphics();
+    border.lineStyle(borderWidth, borderColor, 1);
+    border.strokeRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight);
+    cardContainer.add(border);
+
+    // Create the card image
+    const cardImage = this.add.image(0, 0, 'card_back')
+      .setDisplaySize(cardWidth, cardHeight);
+    cardContainer.add(cardImage);
+
+    // Animate the container
     this.tweens.add({
-      targets: cardImage,
+      targets: cardContainer,
       alpha: 1,
       duration: 300,
       ease: 'Power2',
       onComplete: () => {
         this.tweens.add({
-          targets: cardImage,
+          targets: cardContainer,
           scaleX: 0,
           duration: 200,
           ease: 'Linear',
           onComplete: () => {
             const flipCard = () => {
               cardImage.setTexture(templateId);
+              cardImage.setDisplaySize(cardWidth, cardHeight); 
               this.tweens.add({
-                targets: cardImage,
-                scaleX: 0.5,
+                targets: cardContainer,
+                scaleX: 1,
                 duration: 200,
                 ease: 'Linear'
               });
@@ -138,7 +156,7 @@ export class MainGameScene extends Phaser.Scene {
       }
     });
 
-    return cardImage;
+    return cardContainer;
   }
 
   update() {

@@ -70,6 +70,13 @@ body {
   transform: scale(0.98); /* Press effect */
 }
 
+.nav-panel button.active {
+  background-color: #00ffff; /* Bright cyan for active button */
+  color: #1a1a1a;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+  transform: translateY(-2px) scale(1.02);
+}
+
 .game-panel {
   flex-grow: 1;
   height: 100%;
@@ -162,7 +169,7 @@ body {
 /* HUD for player and opponent info */
 .hud {
   background-color: rgba(0, 0, 0, 0.7); /* Slightly darker, more opaque */
-  border: 1px solid rgba(0, 255, 255, 0.4); /* Cyan border */
+  border: 3px solid rgba(0, 255, 255, 0.4); /* Cyan border, now thicker */
   border-radius: 10px; /* More rounded */
   padding: 0.8rem 1.2rem; /* Adjusted padding */
   min-width: 130px; /* Slightly wider */
@@ -188,12 +195,16 @@ body {
   position: absolute;
   top: 00px; /* Adjusted to be within main-area padding */
   left: 20px; /* Adjusted to be within main-area padding */
+  border-color: rgba(255, 0, 0, 0.7); /* Fluorescent Red */
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
 }
 
 .player-hud {
   position: absolute;
   bottom: 0px; /* Adjusted to be within main-area padding */
   right: 20px; /* Adjusted to be within main-area padding */
+  border-color: rgba(0, 255, 0, 0.7); /* Fluorescent Green */
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
 }
 
 /* Player Area for Hand and Actions */
@@ -231,7 +242,7 @@ body {
 
 .game-log-area {
   width: 350px;
-  height: 230px; /* Set fixed height to match hand container */
+  height: 260px; /* Set fixed height to match hand container */
   background-color: #3a3a3a;
   border-radius: 8px;
   padding: 10px;

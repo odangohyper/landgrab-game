@@ -12,8 +12,21 @@ function App() {
   return (
     <div className="App">
       <div className="nav-panel">
-        <button onClick={() => setCurrentView('game')}>Game</button>
-        <button onClick={() => setCurrentView('deckBuilder')}>Deck Builder</button>
+        <button 
+          className={currentView === 'game' ? 'active' : ''}
+          onClick={() => setCurrentView('game')}
+        >
+          対戦！
+        </button>
+        <button 
+          className={currentView === 'deckBuilder' ? 'active' : ''}
+          onClick={() => setCurrentView('deckBuilder')}
+        >
+          デッキ構築
+        </button>
+        <button disabled>チュートリアル</button>
+        <button disabled>プロローグ</button>
+        <button disabled>クレジット</button>
       </div>
       <div className="game-panel">
         <div className={`view-container ${currentView === 'game' ? 'active' : ''}`}>
