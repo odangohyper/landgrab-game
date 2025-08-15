@@ -251,6 +251,26 @@ const GameView: React.FC<GameViewProps> = () => {
     ? engineRef.current.getPlayableCards(currentPlayerState).map(card => card.id)
     : [];
 
+  // Logic to determine which logs are "latest"
+  const logsToRender = (() => {
+    if (!gameState) return [];
+    
+    // Map logs to include their original index
+    const logsWithOriginalIndex = gameState.log.map((text, index) => ({ text, originalIndex: index }));
+    
+    // Find the index of the last turn marker
+    const lastTurnMarkerIndex = gameState.log.findLastIndex((log: string) => log.startsWith('--- ターン'));
+
+    // Take the last 6 logs to be displayed
+    const slicedLogs = logsWithOriginalIndex.slice(-6);
+
+    // Map them to include the isLatest flag
+    return slicedLogs.map(logItem => ({
+      ...logItem,
+      isLatest: lastTurnMarkerIndex === -1 || logItem.originalIndex >= lastTurnMarkerIndex,
+    })).reverse(); // Reverse for display
+  })();
+
   return (
     <div className="game-container">
       {/* Main area for Phaser canvas and HUDs */}
@@ -285,8 +305,8 @@ const GameView: React.FC<GameViewProps> = () => {
           <div className="bottom-panel">
             <div className="game-log-area">
               <div className="log-entries">
-                {gameState.log.slice().reverse().map((entry, index) => (
-                  <p key={index} className={index === 0 ? 'latest-log' : ''}>{entry}</p>
+                {logsToRender.map((logItem) => (
+                  <p key={logItem.originalIndex} className={logItem.isLatest ? 'latest-log' : ''}>{logItem.text}</p>
                 ))}
               </div>
             </div>

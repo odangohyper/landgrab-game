@@ -218,8 +218,20 @@ body {
   gap: 1rem;
 }
 
+@keyframes log-glow {
+  from {
+    background-color: rgba(0, 255, 255, 0.3);
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+  }
+  to {
+    background-color: rgba(0, 0, 0, 0.2);
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0);
+  }
+}
+
 .game-log-area {
   width: 350px;
+  height: 230px; /* Set fixed height to match hand container */
   background-color: #3a3a3a;
   border-radius: 8px;
   padding: 10px;
@@ -228,6 +240,7 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column-reverse;
+  justify-content: flex-end; /* Aligns content to the top (in reverse) */
   border: 1px solid #444;
   flex-shrink: 0; /* Prevent shrinking */
 }
@@ -245,12 +258,13 @@ body {
   border-radius: 4px;
   font-size: 0.9rem;
   color: #aaa;
-  transition: color 0.5s ease;
+  transition: color 0.5s ease, background-color 0.5s ease;
 }
 
 .log-entries p.latest-log {
   color: #f0f0f0;
   font-weight: bold;
+  animation: log-glow 1.5s 1 ease-out; /* Apply glow animation */
 }
 
 .action-bar {
@@ -288,16 +302,9 @@ body {
   box-shadow: none;
 }
 
-.game-over-message {
-    font-size: 2.5rem;
-    color: #ff6666;
-    font-weight: bold;
-    text-shadow: 0 0 10px rgba(255, 102, 102, 0.5);
-}
-
 /* HandView Container */
 .hand-container {
-  width:600px;
+  width:500px;
   flex-grow: 1;
   display: flex;
   gap: 10px;

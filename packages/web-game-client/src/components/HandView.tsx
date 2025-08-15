@@ -26,7 +26,6 @@ const HandView: React.FC<HandViewProps> = ({ hand, onCardSelect, playableCardIds
   return (
     // 手札全体を囲むコンテナ。CSSクラス`hand-container`が適用されます。
     <div className="hand-container">
-      <h3>Your Hand:</h3>
       {/* 手札にカードがあるかどうかで表示を切り替えます */}
       {currentHand.length === 0 ? (
         // 手札が空の場合に表示されるメッセージ。
