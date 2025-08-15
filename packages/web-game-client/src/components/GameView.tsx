@@ -29,6 +29,8 @@ const GameView: React.FC<GameViewProps> = () => {
   const gameRef = useRef<Phaser.Game | null>(null);
   const isResolvingTurnRef = useRef(false);
 
+  console.log('GameView component rendered. phaserContainerRef.current:', phaserContainerRef.current);
+
   useEffect(() => {
     const authAdapter = new NullAuthAdapter();
     const currentClientId = authAdapter.getClientId();
@@ -49,9 +51,8 @@ const GameView: React.FC<GameViewProps> = () => {
 
       const unsubscribeState = watchGameState(currentMatchId, (dbGameState) => {
         if (dbGameState) {
-          if (engineRef.current) {
-            engineRef.current = new GameEngine(dbGameState, fetchedCardTemplates);
-          }
+          // IMPORTANT: Re-initialize GameEngine with the new state
+          engineRef.current = new GameEngine(dbGameState, fetchedCardTemplates);
           setGameState(dbGameState);
           const currentPlayerState = dbGameState.players.find((p: PlayerState) => p.playerId === currentClientId);
           if (currentPlayerState) {
@@ -62,40 +63,40 @@ const GameView: React.FC<GameViewProps> = () => {
 
       const unsubscribeActions = watchActions(currentMatchId, async (actions) => {
         if (isResolvingTurnRef.current) {
-            console.log('Mutex: Already locked, skipping duplicate trigger.');
-            return;
+          console.log('Mutex: Already locked, skipping duplicate trigger.');
+          return;
         }
         isResolvingTurnRef.current = true;
         console.log('Mutex: Locked.');
 
         try {
-            if (engineRef.current?.getState().phase === 'GAME_OVER') {
-                console.log('Mutex: Game is over, skipping action resolution. (Early exit)');
-                return;
+          if (engineRef.current?.getState().phase === 'GAME_OVER') {
+            console.log('Mutex: Game is over, skipping action resolution. (Early exit)');
+            return;
+          }
+
+          const player1Action = actions[currentClientId];
+          const player2Action = actions[npcId];
+
+          console.log('watchActions: Player1 Action:', player1Action);
+          console.log('watchActions: Player2 Action:', player2Action);
+
+          if (player1Action && player2Action) {
+            console.log('Mutex: Both players submitted actions. Resolving turn...');
+            if (engineRef.current) {
+              console.log('watchActions: Calling applyAction...');
+              const newGameState = engineRef.current.applyAction(player1Action, player2Action);
+              console.log('watchActions: applyAction returned newGameState:', newGameState);
+              await writeState(currentMatchId, newGameState);
+              console.log('watchActions: writeState completed.');
             }
-
-            const player1Action = actions[currentClientId];
-            const player2Action = actions[npcId];
-
-            console.log('watchActions: Player1 Action:', player1Action);
-            console.log('watchActions: Player2 Action:', player2Action);
-
-            if (player1Action && player2Action) {
-              console.log('Mutex: Both players submitted actions. Resolving turn...');
-              if (engineRef.current) {
-                console.log('watchActions: Calling applyAction...');
-                const newGameState = engineRef.current.applyAction(player1Action, player2Action);
-                console.log('watchActions: applyAction returned newGameState:', newGameState);
-                await writeState(currentMatchId, newGameState);
-                console.log('watchActions: writeState completed.');
-              }
-            } else {
-                console.log('Mutex: Actions not yet complete, waiting for opponent. (Early exit)');
-                return;
-            }
+          } else {
+            console.log('Mutex: Actions not yet complete, waiting for opponent. (Early exit)');
+            return;
+          }
         } finally {
-            isResolvingTurnRef.current = false;
-            console.log('Mutex: Unlocked.');
+          isResolvingTurnRef.current = false;
+          console.log('Mutex: Unlocked.');
         }
       });
 
@@ -106,16 +107,26 @@ const GameView: React.FC<GameViewProps> = () => {
     };
 
     setupMatch();
-  }, [clientId, opponentId]); // Add clientId and opponentId to dependencies
+  }, []); // Empty dependency array to run only once on mount
 
   // Effect to launch Phaser game when container ref is available
+  const isFirstMountRef = useRef(true);
+
   useEffect(() => {
-    if (phaserContainerRef.current && !gameRef.current) {
-      gameRef.current = launch(phaserContainerRef.current);
+    console.log('Phaser useEffect: Running. phaserContainerRef.current:', phaserContainerRef.current, 'gameRef.current:', gameRef.current, 'isFirstMountRef.current:', isFirstMountRef.current);
+
+    // Only launch if container is available AND game is not already launched AND it's the first mount
+    if (phaserContainerRef.current && !gameRef.current && isFirstMountRef.current) {
+      console.log('Phaser useEffect: Launching Phaser game.');
+      const gameInstance = launch(phaserContainerRef.current);
+      gameRef.current = gameInstance; // Assign to ref
+
+      // Set isFirstMountRef to false after the first successful launch
+      isFirstMountRef.current = false;
 
       // Listen for startGame event from Phaser TitleScene
-      gameRef.current.events.on('startGame', async () => {
-        console.log('startGame event received from Phaser!');
+      gameInstance.events.on('startGame', async () => {
+        console.log('startGame event received from Phaser! Setting gameStarted to true.');
         setGameStarted(true);
 
         // Initialize game state and advance turn here
@@ -128,15 +139,22 @@ const GameView: React.FC<GameViewProps> = () => {
           }
         }
         // Transition to MainGameScene
-        gameRef.current?.scene.start('MainGameScene');
+        gameInstance?.scene.start('MainGameScene');
       });
     }
 
     return () => {
-      gameRef.current?.destroy(true);
-      gameRef.current = null;
+      console.log('Phaser useEffect: Cleanup function running.');
+      // Only destroy if gameRef.current is a valid Phaser instance
+      if (gameRef.current && gameRef.current.isBooted) {
+        console.log('Phaser useEffect: Destroying Phaser game.');
+        gameRef.current.destroy(true);
+        gameRef.current = null;
+      } else {
+        console.log('Phaser useEffect: Game not booted or already destroyed, skipping destruction.');
+      }
     };
-  }, [phaserContainerRef.current, clientId, opponentId, matchId, cardTemplates]); // Add dependencies
+  }, [clientId, opponentId, cardTemplates, matchId]); // Correct dependencies
 
   const isGameOverHandledRef = useRef(false);
 
@@ -170,7 +188,7 @@ const GameView: React.FC<GameViewProps> = () => {
           await set(ref(database, `matches/${matchId}/actions`), {});
         }
       };
-      
+
       gameRef.current.events.on('animationComplete', handleAnimationComplete);
 
       return () => {
@@ -229,78 +247,66 @@ const GameView: React.FC<GameViewProps> = () => {
     }
   };
 
-  if (!gameStarted) {
-    return (
-      <div className="game-container">
-        <div id="phaser-game-container" ref={phaserContainerRef}></div>
-      </div>
-    );
-  }
-
-  if (!gameState) {
-    return <div>Loading game...</div>;
-  }
-
-  const currentPlayerState = gameState.players.find(p => p.playerId === clientId);
-  const opponentState = gameState.players.find(p => p.playerId !== clientId);
-  const playableCardIds: string[] = [];
-  if (currentPlayerState && engineRef.current) {
-    currentPlayerState.hand.forEach(card => {
-      const cardTemplate = engineRef.current!.getCardTemplate(card.templateId);
-      if (cardTemplate && currentPlayerState.funds >= cardTemplate.cost) {
-        playableCardIds.push(card.id);
-      }
-    });
-  }
+  // State variables for rendering UI
+  const currentPlayerState = gameState?.players.find(p => p.playerId === clientId);
+  const opponentState = gameState?.players.find(p => p.playerId === opponentId);
+  const playableCardIds = currentPlayerState && engineRef.current
+    ? engineRef.current.getPlayableCards(currentPlayerState.hand).map(card => card.id)
+    : [];
 
   return (
     <div className="game-container">
-      <div className="top-bar">
-        <h1 className="game-title">鹿王院エリザベスの地上げですわ！</h1>
-        <p className="turn-info">Turn: {gameState.turn}</p>
-      </div>
+      <div id="phaser-game-container" ref={phaserContainerRef}></div>
+      {gameStarted && gameState && (
+        <>
+          <div className="top-bar">
+            <h1 className="game-title">鹿王院エリザベスの地上げですわ！</h1>
+            <p className="turn-info">Turn: {gameState.turn}</p>
+          </div>
 
-      {/* Opponent HUD */}
-      {opponentState && (
-        <div className="hud opponent-hud">
-          <h2>対戦相手</h2>
-          <p>資金: {opponentState.funds}</p>
-          <p>不動産: {opponentState.properties}</p>
-        </div>
-      )}
+          {/* Opponent HUD */}
+          {opponentState && (
+            <div className="hud opponent-hud">
+              <h2>対戦相手</h2>
+              <p>資金: {opponentState.funds}</p>
+              <p>不動産: {opponentState.properties}</p>
+            </div>
+          )}
 
-      {/* Player HUD */}
-      {currentPlayerState && (
-        <div className="hud player-hud">
-          <h2>プレイヤー</h2>
-          <p>資金: {currentPlayerState.funds}</p>
-          <p>不動産: {currentPlayerState.properties}</p>
-        </div>
-      )}
+          {/* Player HUD */}
+          {currentPlayerState && (
+            <div className="hud player-hud">
+              <h2>プレイヤー</h2>
+              <p>資金: {currentPlayerState.funds}</p>
+              <p>不動産: {currentPlayerState.properties}</p>
+            </div>
+          )}
 
-      <div className="main-area">
-        <div id="phaser-game-container" ref={phaserContainerRef}></div>
-      </div>
+          <div className="player-area">
+            <div className="bottom-panel">
+              <div className="game-log-area">
+                <div className="log-entries">
+                  {gameState.log.slice().reverse().map((entry, index) => (
+                    <p key={index} className={index === 0 ? 'latest-log' : ''}>{entry}</p>
+                  ))}
+                </div>
+              </div>
+              <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
 
-      <div className="player-area">
-        <div className="bottom-panel">
-          <div className="game-log-area">
-            
-            <div className="log-entries">
-              {gameState.log.slice().reverse().map((entry, index) => (
-                <p key={index} className={index === 0 ? 'latest-log' : ''}>{entry}</p>
-              ))}
+              <div className="action-bar">
+                <button onClick={handlePlayTurn} disabled={!selectedCardId || gameState.phase === 'GAME_OVER'} className="play-button">
+                  Play Turn
+                </button>
+              </div>
             </div>
           </div>
-          <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
-
-          <div className="action-bar">
-            <button onClick={handlePlayTurn} disabled={!selectedCardId || gameState.phase === 'GAME_OVER'} className="play-button">
-              Play Turn
-            </button>
-          </div>
+        </>
+      )}
+      {!gameStarted && (
+        <div className={`loading-overlay ${!gameStarted ? 'visible' : ''}`}>
+          <p>Loading game...</p>
         </div>
-      </div>
+      )}
     </div>
   );
 };

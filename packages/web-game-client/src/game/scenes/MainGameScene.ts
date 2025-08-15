@@ -92,7 +92,6 @@ export class MainGameScene extends Phaser.Scene {
     this.time.delayedCall(2000, () => {
       console.log('Animation complete, emitting event to React.');
       this.game.events.emit('animationComplete');
-      this.registry.set('lastActions', null);
       console.log('--- handleActionsResolved END (Animation Complete) ---');
     });
   }

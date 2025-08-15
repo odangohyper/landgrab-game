@@ -25,7 +25,5 @@ resizeGame();
 window.addEventListener('resize', resizeGame);
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <App />,
 )

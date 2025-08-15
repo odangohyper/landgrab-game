@@ -6,18 +6,8 @@ import './App.css';
 type View = 'game' | 'deckBuilder';
 
 function App() {
+  console.log('App component rendered.');
   const [currentView, setCurrentView] = useState<View>('game'); // Default to game view
-
-  const renderView = () => {
-    switch (currentView) {
-      case 'game':
-        return <GameView />;
-      case 'deckBuilder':
-        return <DeckBuilder />;
-      default:
-        return <GameView />;
-    }
-  };
 
   return (
     <div className="App">
@@ -26,7 +16,12 @@ function App() {
         <button onClick={() => setCurrentView('deckBuilder')}>Deck Builder</button>
       </div>
       <div className="game-panel">
-        {renderView()}
+        <div className={`view-container ${currentView === 'game' ? 'active' : ''}`}>
+          <GameView />
+        </div>
+        <div className={`view-container ${currentView === 'deckBuilder' ? 'active' : ''}`}>
+          <DeckBuilder />
+        </div>
       </div>
     </div>
   );
