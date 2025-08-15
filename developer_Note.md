@@ -232,3 +232,35 @@
 サーバーサイドエンジンの主要部分の実装と、その動作を保証するテスト、そしてCIへの統合が完了しました。これにより、ゲームロジックの権威をサーバーに持たせるという、本プロジェクトの重要なアーキテクチャ目標に向けた大きな一歩を踏み出すことができました。
 
 次のステップは、このエンジンを外部から利用可能にするためのAPIエンドポイントを作成することです（タスク23e）。
+
+## 2025年8月15日 開発報告 (続き)
+
+### フェーズ3タスクの完了と主要な問題解決
+
+これまでの開発スプリントで、以下のフェーズ3タスクが完了し、それに伴う主要な問題も解決されました。
+
+#### 23e. ゲームエンジンを呼び出すAPIエンドポイント作成 - 完了
+*   **内容**: FastAPIバックエンドに、ゲームエンジン（Python版）の`apply_action`, `resolve_turn`, `advance_turn`を呼び出すAPIエンドポイントを実装しました。
+*   **解決した問題**:
+    *   `ImportError: cannot import name 'Deck' from 'app.game.models'`: `packages/api-server/app/game/models.py`に`Deck` Pydanticモデルが定義されていなかったため発生。`models.py`に`Deck`クラスを追加することで解決しました。
+
+#### 24. デッキ管理APIのデータベース接続 (Firebase) - 完了
+*   **内容**: デッキ管理API（`packages/api-server/app/api/endpoints.py`）を、インメモリデータベースからFirebase Realtime Databaseを使用するように移行しました。
+*   **解決した問題**:
+    *   `ModuleNotFoundError: No module named 'firebase_admin'`: `firebase-admin`パッケージが`requirements.txt`に含まれていなかったため発生。`packages/api-server/requirements.txt`に`firebase-admin`を追加し、`pip install -r requirements.txt`でインストールすることで解決しました。
+    *   **Firebase認証情報の安全な管理**: サービスアカウントキーの漏洩リスクを考慮し、環境変数（`.env`ファイル）から認証情報を読み込む方式に切り替えました。
+        *   `packages/api-server/.env`ファイルを作成し、`FIREBASE_SERVICE_ACCOUNT_KEY`と`FIREBASE_DATABASE_URL`のプレースホルダーを配置しました。
+        *   `.env`ファイルがGitにコミットされないよう、ルートの`.gitignore`に`packages/api-server/.env`を追加しました。
+        *   `python-dotenv`を`requirements.txt`に追加し、`packages/api-server/app/db/database.py`で環境変数をロードするように実装しました。
+
+#### 25. デッキ構築UIとAPIの統合 - 完了
+*   **内容**: フロントエンドのデッキ構築UI（`packages/web-game-client/src/components/DeckBuilder.tsx`）を、バックエンドのデッキ管理APIと連携させました。デッキの作成、読み込み、更新がUIから可能になりました。
+*   **解決した問題**:
+    *   `POST http://localhost:5173/api/v1/decks/ 404 (Not Found)`: フロントエンドのVite開発サーバーがAPIリクエストをバックエンドに正しくプロキシできていなかったため発生。`packages/web-game-client/vite.config.ts`に`server.proxy`設定を追加し、`/api`パスのリクエストをバックエンド（`http://127.0.0.1:8000`）に転送するように設定しました。
+    *   **プロキシの`rewrite`ルールによるパスの不一致**: `vite.config.ts`の`rewrite`ルールが`/api`プレフィックスを削除しすぎていたため、バックエンドのルーティングと合致しない問題が発生。`vite.config.ts`から`rewrite`ルールを削除することで、パスの不一致を解消しました。
+
+### まとめと次のステップ
+
+今回のスプリントでは、サーバーサイドゲームエンジンのAPIエンドポイント化、デッキ管理のFirebase連携、そしてフロントエンドUIとの統合という、プロジェクトの核となる機能の実装と安定化に成功しました。特に、環境変数を介したFirebase認証情報の安全な管理や、Viteプロキシ設定のデバッグは、今後の開発における重要な知見となりました。
+
+次のタスクは、**26. NPC AIの改善 (重み付け行動型)** です。これにより、ゲームのプレイアビリティと面白さが向上するでしょう。

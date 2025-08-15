@@ -10,7 +10,6 @@ body {
   background-color: #1a1a1a; /* Darker background for the whole page */
   color: #f0f0f0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  /* Removed flexbox properties */
 }
 
 #game-root {
@@ -21,6 +20,9 @@ body {
   height: 900px; /* Base height */
   transform-origin: center center;
   /* Scaling will be applied by JavaScript */
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.3); /* Subtle glow for the whole game area */
+  border-radius: 10px; /* Slightly rounded corners for the game area */
+  overflow: hidden; /* Ensure content respects border-radius */
 }
 
 /* General App Styling */
@@ -28,49 +30,52 @@ body {
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: row; /* Change to row */
+  flex-direction: row;
+  background-color: #222; /* Slightly lighter background for the app itself */
 }
 
 .nav-panel {
   width: 200px; /* Fixed width for navigation */
   height: 100%;
-  background-color: #1a1a1a;
+  background-color: #1a1a1a; /* Darker background for nav */
   padding: 1rem;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
+  border-right: 1px solid #333; /* Separator line */
 }
 
 .nav-panel button {
-  background-color: #00ffff;
+  background-color: #00bfff; /* Brighter blue */
   color: #1a1a1a;
   border: none;
-  padding: 10px 20px;
-  font-size: 1rem;
+  padding: 12px 20px; /* More padding */
+  font-size: 1.1rem; /* Slightly larger font */
   font-weight: bold;
-  border-radius: 5px;
+  border-radius: 8px; /* More rounded corners */
   cursor: pointer;
-  transition: background-color 0.3s, transform 0.1s;
-  width: 100%; /* Make buttons fill the width of nav-panel */
+  transition: background-color 0.3s ease, transform 0.1s ease;
+  width: 100%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
 }
 
 .nav-panel button:hover {
-  background-color: #80ffff;
-  transform: scale(1.02);
+  background-color: #0099cc; /* Darker blue on hover */
+  transform: translateY(-2px) scale(1.02); /* Lift and scale */
 }
 
 .nav-panel button:active {
-  transform: scale(0.98);
+  transform: scale(0.98); /* Press effect */
 }
 
 .game-panel {
-  flex-grow: 1; /* Take remaining space */
+  flex-grow: 1;
   height: 100%;
-  display: flex; /* Add flexbox */
-  justify-content: center; /* Center content horizontally */
-  align-items: center; /* Center content vertically */
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background-color: #2a2a2a;
 }
 
@@ -79,11 +84,11 @@ body {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  height: 100%; /* Occupy full height of #game-root */
+  height: 100%;
   box-sizing: border-box;
-  position: relative; /* Add position relative here */
+  position: relative;
+  padding: 1rem; /* Add overall padding to the game container */
 }
-
 
 /* Top bar for title and turn info */
 .top-bar {
@@ -91,19 +96,22 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  /* Removed padding: 0.5rem 1rem; */
-  background-color: #2a2a2a;
-  border-radius: 8px;
-  /* Removed margin-bottom: 1rem; */
+  padding: 0.5rem 1rem; /* Add padding */
+  /* Removed background-color and border-radius */
+  margin-bottom: 1rem; /* Space below top bar */
+  box-sizing: border-box;
 }
 
 .game-title {
-  font-size: 1.5rem;
+  font-size: 1.8rem; /* Larger title */
   font-weight: bold;
+  color: #00ffff; /* Bright cyan */
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5); /* Subtle glow */
 }
 
 .turn-info {
-  font-size: 1.2rem;
+  font-size: 1.4rem; /* Larger turn info */
+  color: #f0f0f0;
 }
 
 /* Main area for Phaser and HUDs */
@@ -112,45 +120,56 @@ body {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  flex-grow: 1; /* Take remaining vertical space */
+  flex-grow: 1;
+  position: relative; /* For absolute positioning of HUDs */
 }
 
 #phaser-game-container {
-  width: 700px;
-  height: 500px;
-  margin-left: 0px;
-  border-radius: 8px;
-  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
-  border: 2px solid rgba(0, 255, 255, 0.7);
-  margin-bottom: 1rem;
+  width: 1000px; /* Increased width */
+  height: 600px; /* Increased height */
+  border-radius: 12px; /* More rounded corners */
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.7); /* Stronger glow */
+  border: 3px solid rgba(0, 255, 255, 0.9); /* Thicker border */
+  margin-bottom: 1rem; /* Space below Phaser canvas */
+  background-color: #111; /* Dark background for canvas area */
 }
 
 /* HUD for player and opponent info */
 .hud {
-  background-color: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 1rem;
-  min-width: 160px;
+  background-color: rgba(0, 0, 0, 0.7); /* Slightly darker, more opaque */
+  border: 1px solid rgba(0, 255, 255, 0.4); /* Cyan border */
+  border-radius: 10px; /* More rounded */
+  padding: 0.8rem 1.2rem; /* Adjusted padding */
+  min-width: 180px; /* Slightly wider */
   text-align: center;
+  color: #f0f0f0;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2); /* Subtle glow */
 }
 
 .hud h2 {
   margin-top: 0;
-  font-size: 1.2rem;
+  font-size: 1.3rem; /* Slightly larger */
   color: #00ffff;
+  margin-bottom: 0.5rem;
+}
+
+.hud p {
+  margin: 0.3rem 0;
+  font-size: 1.1rem;
 }
 
 .opponent-hud {
   position: absolute;
-  top: 80px;
-  left: 20px;
+  top: 0; /* Align to top of main-area */
+  left: 0; /* Align to left of main-area */
+  transform: translate(20px, 20px); /* Offset from corner */
 }
 
 .player-hud {
   position: absolute;
-  bottom: 320px;
-  right: 20px;
+  bottom: 0; /* Align to bottom of main-area */
+  right: 0; /* Align to right of main-area */
+  transform: translate(-20px, -20px); /* Offset from corner */
 }
 
 /* Player Area for Hand and Actions */
@@ -160,36 +179,36 @@ body {
   flex-direction: column;
   align-items: center;
   background-color: #2a2a2a;
-  /* Removed padding: 1rem; */
+  padding: 1rem; /* Consistent padding */
   border-radius: 8px;
-  padding: 0 1rem 1rem 1rem; /* Add padding to sides and bottom */
   box-sizing: border-box;
+  margin-top: 1rem; /* Space above player area */
 }
 
 .bottom-panel {
   display: flex;
   flex-direction: row;
-  align-items: stretch; /* Key for same height */
+  align-items: stretch;
   width: 100%;
   gap: 1rem;
-  margin-top: 1rem; /* Add margin to the top of the whole panel */
 }
 
 .game-log-area {
-  width: 350px; /* Fixed width for the log area */
+  width: 350px;
   background-color: #3a3a3a;
   border-radius: 8px;
   padding: 10px;
   box-sizing: border-box;
   color: #f0f0f0;
-  overflow-y: auto; /* Enable scrolling for logs */
+  overflow-y: auto;
   display: flex;
-  flex-direction: column-reverse; /* Newest logs at the bottom, but rendered top-down */
+  flex-direction: column-reverse;
+  border: 1px solid #444; /* Subtle border */
 }
 
 .log-entries {
   display: flex;
-  flex-direction: column; /* Arrange log entries vertically */
+  flex-direction: column;
   gap: 5px;
 }
 
@@ -199,12 +218,12 @@ body {
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
   font-size: 0.9rem;
-  color: #aaa; /* Dimmer color for old logs */
+  color: #aaa;
   transition: color 0.5s ease;
 }
 
 .log-entries p.latest-log {
-  color: #f0f0f0; /* Brighter color for the latest log */
+  color: #f0f0f0;
   font-weight: bold;
 }
 
@@ -212,51 +231,53 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 0; /* Remove margin from here */
+  flex-grow: 1; /* Take remaining space */
 }
 
 .play-button {
-  background-color: #00ffff;
+  background-color: #00bfff; /* Brighter blue */
   color: #1a1a1a;
   border: none;
-  padding: 10px;
-  font-size: 1.2rem;
+  padding: 15px 30px; /* More prominent */
+  font-size: 1.5rem; /* Larger font */
   font-weight: bold;
-  border-radius: 8px;
+  border-radius: 10px; /* More rounded */
   cursor: pointer;
-  transition: background-color 0.3s, transform 0.1s;
-  height: 150px;
+  transition: background-color 0.3s ease, transform 0.1s ease;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4); /* Stronger shadow */
 }
 
 .play-button:hover:not(:disabled) {
-  background-color: #80ffff;
-  transform: scale(1.05);
+  background-color: #0099cc;
+  transform: translateY(-3px) scale(1.05);
 }
 
 .play-button:disabled {
   background-color: #555;
   color: #888;
   cursor: not-allowed;
-  height: 150px;
+  box-shadow: none;
 }
 
 .game-over-message {
-    font-size: 2rem;
-    color: #ff4d4d;
+    font-size: 2.5rem; /* Larger game over message */
+    color: #ff6666; /* Softer red */
     font-weight: bold;
+    text-shadow: 0 0 10px rgba(255, 102, 102, 0.5); /* Glow */
 }
 
 /* HandView Container */
 .hand-container {
-  flex-grow: 1; /* Make the hand container expand */
+  flex-grow: 1;
   display: flex;
   gap: 15px;
   padding: 20px;
   background-color: #3a3a3a;
   border-radius: 8px;
-  margin-top: 1rem;
-  justify-content: center; /* Center the cards */
-  flex-wrap: wrap; /* Allow cards to wrap to next line */
+  margin-top: 0; /* Remove top margin, handled by bottom-panel gap */
+  justify-content: center;
+  flex-wrap: wrap;
+  border: 1px solid #444; /* Subtle border */
 }
 
 .hand-container h3 {
@@ -274,10 +295,10 @@ body {
 /* Individual Card Item */
 .card-item {
   border: 2px solid #555;
-  border-radius: 8px;
+  border-radius: 10px; /* More rounded */
   padding: 10px;
-  width: 120px; /* Slightly larger card size */
-  height: 180px;
+  width: 130px; /* Slightly larger card size */
+  height: 190px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -287,7 +308,8 @@ body {
   opacity: 1;
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out;
   position: relative;
-  overflow: hidden; /* Ensure image doesn't overflow rounded corners */
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
 }
 
 .card-item.playable {
@@ -295,33 +317,33 @@ body {
 }
 
 .card-item.playable:hover {
-  transform: translateY(-5px) scale(1.03);
-  box-shadow: 0 5px 15px rgba(0, 255, 255, 0.4);
-  border-color: #00ffff;
+  transform: translateY(-8px) scale(1.05); /* More pronounced lift */
+  box-shadow: 0 8px 20px rgba(0, 255, 255, 0.6); /* Stronger glow */
+  border-color: #00ffff; /* Bright cyan border */
 }
 
 .card-item.selected {
-  border-color: #ffcc00; /* Gold border for selected card */
-  box-shadow: 0 0 20px rgba(255, 204, 0, 0.6);
-  transform: translateY(-10px) scale(1.05); /* Lift selected card more */
+  border-color: #ffcc00;
+  box-shadow: 0 0 25px rgba(255, 204, 0, 0.8);
+  transform: translateY(-15px) scale(1.1); /* Lift selected card more */
 }
 
 .card-item.disabled {
-  opacity: 0.6;
+  opacity: 0.4; /* More dimmed */
   cursor: not-allowed;
-  filter: grayscale(70%);
+  filter: grayscale(80%); /* More grayscale */
 }
 
 .card-image {
   width: 100%;
-  height: 60px;
+  height: 70px; /* Slightly larger image area */
   flex-grow: 1;
-  object-fit: contain; /* Ensure image fits within bounds */
-  border-radius: 4px; /* Slightly rounded image corners */
+  object-fit: contain;
+  border-radius: 6px;
 }
 
 .card-name {
-  font-size: 0.9em;
+  font-size: 1em; /* Slightly larger font */
   text-align: center;
   margin-top: 5px;
   color: #f0f0f0;

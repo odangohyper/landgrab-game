@@ -14,6 +14,7 @@ function resizeGame() {
   const scaleY = window.innerHeight / BASE_HEIGHT;
   const scale = Math.min(scaleX, scaleY);
 
+  // Apply scale and ensure it's centered
   gameRoot.style.transform = `translate(-50%, -50%) scale(${scale})`;
 }
 

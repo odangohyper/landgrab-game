@@ -1,5 +1,3 @@
-// packages/web-game-client/src/components/GameView.tsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import { GameEngine } from '../game/engine';
 import { MainGameScene } from '../game/scenes/MainGameScene';
@@ -11,6 +9,7 @@ import { NullAuthAdapter } from '../auth/NullAuthAdapter';
 import { database } from '../firebaseConfig';
 import { ref, set } from 'firebase/database';
 import Phaser from 'phaser';
+import { choose_card } from '../game/ai/ai'; // Import choose_card
 
 interface GameViewProps {
   // Props will be added later if needed, e.g., onGameEnd
@@ -207,8 +206,11 @@ const GameView: React.FC<GameViewProps> = () => {
       const npcPlayerState = gameState.players.find(p => p.playerId === opponentId);
       let player2Action: Action | null = null;
       if (npcPlayerState && npcPlayerState.hand.length > 0) {
-        const randomCard = npcPlayerState.hand[Math.floor(Math.random() * npcPlayerState.hand.length)];
-        player2Action = { playerId: opponentId, cardId: randomCard.id };
+        // Use choose_card for NPC action
+        const chosenCard = choose_card(gameState, npcPlayerState.hand, Date.now(), cardTemplates);
+        if (chosenCard) {
+          player2Action = { playerId: opponentId, cardId: chosenCard.id };
+        }
       }
 
       if (player1Action) {

@@ -1,41 +1,52 @@
-# packages/api-server/app/api/game_endpoints.py
-
 from fastapi import APIRouter, HTTPException
+from typing import Dict, List, Optional
+from pydantic import BaseModel
+
+from ..game.models import GameState, Action, PlayerState, Card, CardTemplate
 from ..game.engine import GameEngine
-from ..game.models import GameState, Action
 
 router = APIRouter()
 
-# In-memory store for games
-games: dict[str, GameEngine] = {}
+class ApplyActionRequest(BaseModel):
+    game_state: GameState
+    action: Action
 
-# Mock card templates for now
-mock_card_templates = {
-    'GAIN_FUNDS': { 'templateId': 'GAIN_FUNDS', 'name': '資金集め', 'cost': 0, 'type': 'GAIN_FUNDS' },
-    'ACQUIRE': { 'templateId': 'ACQUIRE', 'name': '買収', 'cost': 2, 'type': 'ACQUIRE' },
-    'DEFEND': { 'templateId': 'DEFEND', 'name': '防衛', 'cost': 0, 'type': 'DEFEND' },
-    'FRAUD': { 'templateId': 'FRAUD', 'name': '詐欺', 'cost': 1, 'type': 'FRAUD' },
-}
-
-@router.post("/games/", response_model=GameState)
-async def create_game(player1_id: str = "player1", player2_id: str = "npc"):
-    """Creates a new game and returns the initial state."""
-    initial_state = GameEngine.create_initial_state(player1_id, player2_id)
-    engine = GameEngine(initial_state, mock_card_templates)
-    games[initial_state.matchId] = engine
-    return initial_state
-
-@router.post("/games/{match_id}/action", response_model=GameState)
-async def submit_action(match_id: str, action: Action):
-    """Submits a player action to the game engine."""
-    if match_id not in games:
-        raise HTTPException(status_code=404, detail="Game not found")
+@router.post("/game/apply_action", response_model=GameState)
+async def apply_game_action(request: ApplyActionRequest):
+    engine = GameEngine(initial_game_state=request.game_state)
     
-    engine = games[match_id]
-    # This is a simplified placeholder. In a real scenario, we'd need to handle
-    # collecting actions from both players before calling apply_actions.
-    # For now, we'll just log it.
-    print(f"Received action from {action.playerId} for match {match_id}")
-    # new_state = engine.apply_actions(action, None) # Placeholder for opponent action
-    # games[match_id] = GameEngine(new_state) # Update engine with new state
-    return engine.get_state()
+    # Assuming apply_action modifies the game_state in place or returns a new one
+    # Based on engine.py, it seems to return a new GameState
+    updated_game_state = engine.apply_action(request.game_state, request.action)
+    
+    return updated_game_state
+
+class ResolveTurnRequest(BaseModel):
+    game_state: GameState
+    player_action: Action
+    npc_action: Action
+
+@router.post("/game/resolve_turn", response_model=GameState)
+async def resolve_game_turn(request: ResolveTurnRequest):
+    engine = GameEngine(initial_game_state=request.game_state)
+    
+    # Assuming resolve_actions takes the current state and both actions
+    updated_game_state = engine.resolve_actions(
+        current_state=request.game_state,
+        player_action=request.player_action,
+        npc_action=request.npc_action
+    )
+    
+    return updated_game_state
+
+class AdvanceTurnRequest(BaseModel):
+    game_state: GameState
+
+@router.post("/game/advance_turn", response_model=GameState)
+async def advance_game_turn(request: AdvanceTurnRequest):
+    engine = GameEngine(initial_game_state=request.game_state)
+    
+    # Assuming advance_turn returns a new GameState
+    updated_game_state = engine.advance_turn(request.game_state)
+    
+    return updated_game_state
