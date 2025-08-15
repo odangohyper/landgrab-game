@@ -16,8 +16,8 @@ export class TitleScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // Add title text
-    this.add.text(width / 2, height / 2 - 100, '鹿王院エリザベスの地上げですわ！', {
-      fontSize: '64px',
+    this.add.text(width / 2, height / 2 - 100, '鹿王院エリザベス\nの地上げですわ！', {
+      fontSize: '48px',
       color: '#00ffff',
       align: 'center',
       stroke: '#000000',

@@ -50,7 +50,8 @@
 | 30. AudioContext警告の解消と音声機能の追加 | 未 | GEMINIAI |
 
 | **継続課題** | | |
-| 33. UI/UXの全体的な再調整とPhaser統合のデバッグ | 未 | GEMINIAI |
+| 33. UI/UXの全体的な再調整とPhaser統合のデバッグ | 済 | GEMINIAI |
+| 35. UI/UXの改善 | 未 | GEMINIAI |
 | 34. ゲームバランスの調整 | 未 | GEMINIユーザ |
 
 
