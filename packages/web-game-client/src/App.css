@@ -137,7 +137,7 @@ body {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  height: 100%; /* Changed from flex-grow: 1 */
+  flex-grow: 1; /* Revert to flex-grow */
   min-height: 0; /* Add min-height: 0 to prevent collapse */
   position: relative; /* For absolute positioning of HUDs */
   /* padding-top: 80px; */ /* Removed to prevent shrinking */
