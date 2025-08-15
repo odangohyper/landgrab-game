@@ -66,6 +66,14 @@ export class GameEngine {
     return this.cardTemplates[templateId];
   }
 
+  public getPlayableCards(player: PlayerState): Card[] {
+    if (!player) return [];
+    return player.hand.filter(card => {
+      const template = this.getCardTemplate(card.templateId);
+      return template && player.funds >= template.cost;
+    });
+  }
+
   public static createInitialState(player1Id: string, player2Id: string, cardTemplates: { [key: string]: CardTemplate }): GameState {
     const initialDeck: Card[] = Object.values(cardTemplates)
       .flatMap(t => Array(t.name === '資金集め' ? 4 : 2).fill(t.templateId)) // Example distribution

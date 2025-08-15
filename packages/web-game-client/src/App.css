@@ -146,6 +146,11 @@ body {
 }
 
 #phaser-game-container {
+  width: 100%;
+  height: 100%;
+  max-width: 1000px;
+  max-height: 600px;
+  aspect-ratio: 1000 / 600;
   border-radius: 12px; /* More rounded corners */
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.7); /* Stronger glow */
   border: 3px solid rgba(0, 255, 255, 0.9); /* Thicker border */

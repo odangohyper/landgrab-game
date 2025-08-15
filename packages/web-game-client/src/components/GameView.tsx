@@ -110,19 +110,15 @@ const GameView: React.FC<GameViewProps> = () => {
   }, []); // Empty dependency array to run only once on mount
 
   // Effect to launch Phaser game when container ref is available
-  const isFirstMountRef = useRef(true);
 
   useEffect(() => {
-    console.log('Phaser useEffect: Running. phaserContainerRef.current:', phaserContainerRef.current, 'gameRef.current:', gameRef.current, 'isFirstMountRef.current:', isFirstMountRef.current);
+    console.log('Phaser useEffect: Running. phaserContainerRef.current:', phaserContainerRef.current, 'gameRef.current:', gameRef.current);
 
-    // Only launch if container is available AND game is not already launched AND it's the first mount
-    if (phaserContainerRef.current && !gameRef.current && isFirstMountRef.current) {
+    // Only launch if container is available AND game is not already launched
+    if (phaserContainerRef.current && !gameRef.current) {
       console.log('Phaser useEffect: Launching Phaser game.');
       const gameInstance = launch(phaserContainerRef.current);
       gameRef.current = gameInstance; // Assign to ref
-
-      // Set isFirstMountRef to false after the first successful launch
-      isFirstMountRef.current = false;
 
       // Listen for startGame event from Phaser TitleScene
       gameInstance.events.on('startGame', async () => {
@@ -251,7 +247,7 @@ const GameView: React.FC<GameViewProps> = () => {
   const currentPlayerState = gameState?.players.find(p => p.playerId === clientId);
   const opponentState = gameState?.players.find(p => p.playerId === opponentId);
   const playableCardIds = currentPlayerState && engineRef.current
-    ? engineRef.current.getPlayableCards(currentPlayerState.hand).map(card => card.id)
+    ? engineRef.current.getPlayableCards(currentPlayerState).map(card => card.id)
     : [];
 
   return (
