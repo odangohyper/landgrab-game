@@ -4,3 +4,4 @@ pydantic
 pytest
 python-dotenv
 firebase-admin
+pytest-cov

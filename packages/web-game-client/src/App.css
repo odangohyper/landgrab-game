@@ -82,7 +82,7 @@ body {
 .game-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /* align-items: center; */ /* Removed to allow more flexible horizontal alignment */
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -97,7 +97,6 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 1rem; /* Add padding */
-  /* Removed background-color and border-radius */
   margin-bottom: 1rem; /* Space below top bar */
   box-sizing: border-box;
 }
@@ -120,8 +119,11 @@ body {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  flex-grow: 1;
+  flex-grow: 1; /* Take remaining vertical space */
   position: relative; /* For absolute positioning of HUDs */
+  padding-top: 80px; /* Add padding to prevent HUD overlap with top-bar */
+  padding-bottom: 80px; /* Add padding to prevent HUD overlap with player-area */
+  box-sizing: border-box;
 }
 
 #phaser-game-container {
@@ -130,8 +132,9 @@ body {
   border-radius: 12px; /* More rounded corners */
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.7); /* Stronger glow */
   border: 3px solid rgba(0, 255, 255, 0.9); /* Thicker border */
-  margin-bottom: 1rem; /* Space below Phaser canvas */
+  /* margin-bottom: 1rem; */ /* Removed, flex-grow will handle spacing */
   background-color: #111; /* Dark background for canvas area */
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 /* HUD for player and opponent info */
@@ -144,6 +147,7 @@ body {
   text-align: center;
   color: #f0f0f0;
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.2); /* Subtle glow */
+  z-index: 10; /* Ensure HUDs are above Phaser canvas */
 }
 
 .hud h2 {
@@ -160,16 +164,14 @@ body {
 
 .opponent-hud {
   position: absolute;
-  top: 0; /* Align to top of main-area */
-  left: 0; /* Align to left of main-area */
-  transform: translate(20px, 20px); /* Offset from corner */
+  top: 20px; /* Adjusted to be within main-area padding */
+  left: 20px; /* Adjusted to be within main-area padding */
 }
 
 .player-hud {
   position: absolute;
-  bottom: 0; /* Align to bottom of main-area */
-  right: 0; /* Align to right of main-area */
-  transform: translate(-20px, -20px); /* Offset from corner */
+  bottom: 20px; /* Adjusted to be within main-area padding */
+  right: 20px; /* Adjusted to be within main-area padding */
 }
 
 /* Player Area for Hand and Actions */
@@ -183,6 +185,7 @@ body {
   border-radius: 8px;
   box-sizing: border-box;
   margin-top: 1rem; /* Space above player area */
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .bottom-panel {
@@ -203,7 +206,8 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column-reverse;
-  border: 1px solid #444; /* Subtle border */
+  border: 1px solid #444;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .log-entries {
@@ -231,20 +235,20 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  flex-grow: 1; /* Take remaining space */
+  flex-grow: 1;
 }
 
 .play-button {
-  background-color: #00bfff; /* Brighter blue */
+  background-color: #00bfff;
   color: #1a1a1a;
   border: none;
-  padding: 15px 30px; /* More prominent */
-  font-size: 1.5rem; /* Larger font */
+  padding: 15px 30px;
+  font-size: 1.5rem;
   font-weight: bold;
-  border-radius: 10px; /* More rounded */
+  border-radius: 10px;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.1s ease;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4); /* Stronger shadow */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
 }
 
 .play-button:hover:not(:disabled) {
@@ -260,10 +264,10 @@ body {
 }
 
 .game-over-message {
-    font-size: 2.5rem; /* Larger game over message */
-    color: #ff6666; /* Softer red */
+    font-size: 2.5rem;
+    color: #ff6666;
     font-weight: bold;
-    text-shadow: 0 0 10px rgba(255, 102, 102, 0.5); /* Glow */
+    text-shadow: 0 0 10px rgba(255, 102, 102, 0.5);
 }
 
 /* HandView Container */
@@ -274,10 +278,11 @@ body {
   padding: 20px;
   background-color: #3a3a3a;
   border-radius: 8px;
-  margin-top: 0; /* Remove top margin, handled by bottom-panel gap */
+  margin-top: 0;
   justify-content: center;
   flex-wrap: wrap;
-  border: 1px solid #444; /* Subtle border */
+  border: 1px solid #444;
+  flex-shrink: 0;
 }
 
 .hand-container h3 {
@@ -295,9 +300,9 @@ body {
 /* Individual Card Item */
 .card-item {
   border: 2px solid #555;
-  border-radius: 10px; /* More rounded */
+  border-radius: 10px;
   padding: 10px;
-  width: 130px; /* Slightly larger card size */
+  width: 130px;
   height: 190px;
   display: flex;
   flex-direction: column;
@@ -309,7 +314,7 @@ body {
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .card-item.playable {
@@ -317,33 +322,33 @@ body {
 }
 
 .card-item.playable:hover {
-  transform: translateY(-8px) scale(1.05); /* More pronounced lift */
-  box-shadow: 0 8px 20px rgba(0, 255, 255, 0.6); /* Stronger glow */
-  border-color: #00ffff; /* Bright cyan border */
+  transform: translateY(-8px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 255, 255, 0.6);
+  border-color: #00ffff;
 }
 
 .card-item.selected {
   border-color: #ffcc00;
   box-shadow: 0 0 25px rgba(255, 204, 0, 0.8);
-  transform: translateY(-15px) scale(1.1); /* Lift selected card more */
+  transform: translateY(-15px) scale(1.1);
 }
 
 .card-item.disabled {
-  opacity: 0.4; /* More dimmed */
+  opacity: 0.4;
   cursor: not-allowed;
-  filter: grayscale(80%); /* More grayscale */
+  filter: grayscale(80%);
 }
 
 .card-image {
   width: 100%;
-  height: 70px; /* Slightly larger image area */
+  height: 70px;
   flex-grow: 1;
   object-fit: contain;
   border-radius: 6px;
 }
 
 .card-name {
-  font-size: 1em; /* Slightly larger font */
+  font-size: 1em;
   text-align: center;
   margin-top: 5px;
   color: #f0f0f0;

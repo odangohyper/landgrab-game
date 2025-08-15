@@ -43,11 +43,14 @@
 | 26. NPC AIの改善 (重み付け行動型) | 済 | GEMINIAI |
 | 27. UI/UXとPhaserアニメーションの表示設定 | 済 | GEMINIAI |
 | 28. UI/UXとPhaserアニメーションの洗練 | 済 | GEMINIAI |
-| 29. タイトル画面の実装 | 未 | GEMINIAI |
+| 29. タイトル画面の実装 | 済 | GEMINIAI |
 | 32. ゲームログ表示の実装 | 済 | GEMINIAI |
 
 | **優先順位の低いタスク** | | |
 | 30. AudioContext警告の解消と音声機能の追加 | 未 | GEMINIAI |
+
+| **継続課題** | | |
+| 33. UI/UXの全体的な再調整とPhaser統合のデバッグ | 未 | GEMINIAI |
 
 | **将来的なアーキテクチャ課題** | | |
 | 31. 本格的なセッション管理の実装（ゲーム中断・再接続など） | 未 | GEMINIAI |

@@ -12,4 +12,12 @@ module.exports = {
     '!src/game/scenes/**/*.ts', // Exclude Phaser scenes for now
     '!src/game/PhaserGame.ts', // Exclude Phaser game entry point
   ],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
 };

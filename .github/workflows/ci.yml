@@ -1,55 +1,79 @@
 # .github/workflows/ci.yml
 
+# ワークフローの名前を定義します。GitHub ActionsのUIに表示されます。
 name: CI
 
+# ワークフローが実行されるトリガーイベントを定義します。
 on:
+  # pushイベントが発生したとき
   push:
+    # mainまたはdevelopブランチへのプッシュで実行されます。
     branches:
       - main
       - develop
+  # pull_requestイベントが発生したとき
   pull_request:
+    # mainまたはdevelopブランチへのプルリクエストで実行されます。
     branches:
       - main
       - develop
 
+# ワークフロー内で実行されるジョブを定義します。
 jobs:
+  # 'build'という名前のジョブを定義します。
   build:
+    # このジョブが実行される仮想環境を指定します。ここでは最新のUbuntu環境を使用します。
     runs-on: ubuntu-latest
 
+    # ジョブ内で実行されるステップを定義します。
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    # Gitリポジトリをチェックアウトするステップです。
+    - name: Checkout code # ステップの名前
+      uses: actions/checkout@v4 # 'checkout'アクションのバージョン4を使用
 
+    # Node.js環境をセットアップするステップです。
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v4 # 'setup-node'アクションのバージョン4を使用
       with:
-        node-version: '20' # Use a recent LTS version
+        node-version: '20' # 使用するNode.jsのバージョンを指定（最近のLTSバージョン）
 
+    # Python環境をセットアップするステップです。
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v5 # 'setup-python'アクションのバージョン5を使用
       with:
-        python-version: '3.10' # Use a compatible Python version
+        python-version: '3.10' # 使用するPythonのバージョンを指定（互換性のあるバージョン）
 
+    # プロジェクトのルート依存関係をインストールするステップです。
+    # このプロジェクトがモノレポでnpmワークスペースを使用している場合、これによりすべてのワークスペースの依存関係もインストールされます。
     - name: Install root dependencies
-      run: npm install # Install root dependencies and link workspaces
+      run: npm install # 'npm install'コマンドを実行
 
+    # フロントエンド（web-game-client）のテストを実行するステップです。
     - name: Run frontend tests
-      run: npm test --workspace web-game-client # Run tests for the web-game-client package
+      run: npm test --workspace web-game-client # 'npm test'を'web-game-client'ワークスペースに対して実行
 
-    # Future steps:
+    # 今後のステップ（現在はコメントアウトされています）:
     # - name: Run frontend lint
     #   run: pnpm lint --workspace web-game-client
 
     # - name: Build frontend
     #   run: pnpm build --workspace web-game-client
 
+    # バックエンド（api-server）の依存関係をインストールするステップです。
     - name: Install backend dependencies
+      # 'requirements.txt'ファイルにリストされているPythonパッケージをインストールします。
       run: pip install -r packages/api-server/requirements.txt
 
+    # バックエンド（api-server）のテストを実行するステップです。
     - name: Run backend tests
+      # 'pytest'コマンドを実行し、'packages/api-server/tests'ディレクトリ内のテストを実行します。
       run: python -m pytest packages/api-server/tests
+      # テスト実行時に環境変数を設定します。
       env:
+        # PYTHONPATHにバックエンドのルートディレクトリを追加し、
+        # Pythonがモジュールを正しくインポートできるようにします。
         PYTHONPATH: ./packages/api-server
 
+    # 今後のステップ（現在はコメントアウトされています）:
     # - name: Build backend (if applicable)
     #   run: # Command to build backend
