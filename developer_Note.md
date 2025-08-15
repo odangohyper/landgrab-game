@@ -263,4 +263,71 @@
 
 今回のスプリントでは、サーバーサイドゲームエンジンのAPIエンドポイント化、デッキ管理のFirebase連携、そしてフロントエンドUIとの統合という、プロジェクトの核となる機能の実装と安定化に成功しました。特に、環境変数を介したFirebase認証情報の安全な管理や、Viteプロキシ設定のデバッグは、今後の開発における重要な知見となりました。
 
-次のタスクは、**26. NPC AIの改善 (重み付け行動型)** です。これにより、ゲームのプレイアビリティと面白さが向上するでしょう。
+## 2025年8月15日 開発報告 (描画問題の課題と今後の対策方針)
+
+  現在の残りの問題とそれらに対する私の考えは次のとおりです。
+
+  アプリケーションの現状:
+
+   1. Phaserの再初期化: 良いニュースは、Phaserゲームインスタンスの繰り返し破棄と再作成（タイトル画面のちらつき）がほぼ解決
+      されたことです。GameView.tsxのisFirstMountRefパターンは、ReactのStrictModeの二重呼び出しがあっても、Phaserがコンポー
+      ネントのマウントごとに一度だけ起動されるように意図通りに機能しています。コンソールログがこれを裏付けています。
+   2. Phaserコンテナの縮小: これが残された主要な視覚的な問題です。Phaserコンテナ（#phaser-game-container）とその親（.main-
+      area）は、初期レンダリング直後に「限りなく小さい高さ」に崩壊しています。
+
+  コンテナ縮小問題の私の分析:
+
+   * 根本原因: これはほぼ間違いなくCSSレイアウトの問題であり、特にflexboxの高さの伝播に関連しています。
+   * Flexboxの階層:
+       * #game-root（固定サイズ、JSでスケーリング）
+       * .App（display: flex; flex-direction: row; height: 100%;）
+       * .game-panel（flex-grow: 1; height: 100%; display: flex;）
+       * .view-container（position: absolute; width: 100%; height: 100%;）
+       * .game-container（display: flex; flex-direction: column; width: 100%; height: 100%;）
+       * .main-area（display: flex; flex-direction: column; width: 100%;）- これが問題の要素です。
+       * #phaser-game-container（width: 100%; height: 100%; max-width: 1000px; max-height: 600px; aspect-ratio: 1000 /
+         600;）
+
+   * `.main-area`が崩壊する理由:
+       * .game-containerはflex列です。その子要素は.top-bar、.main-area、.player-areaです。
+       * .top-barと.player-areaはコンテンツベースの高さを持っています。
+       * .main-areaは残りの垂直スペースを占めることになっています。
+       * 根本的な問題は、flexアイテム（`.main-area`など）がそれ自体がflexコンテナ（`display: flex; flex-direction:
+         column;`）であり、その子要素（`#phaser-game-container`）がパーセンテージの高さ（`height: 100%`）を持つ場合、明示
+         的に成長するように指示されない限り、または`min-height`が与えられない限り、flexアイテムはしばしば固有のコンテンツ
+         の高さ（コンテンツが明示的にサイズ指定されていない場合はゼロになる可能性があります）に崩壊することです。
+       * 以前の.main-areaにheight:
+         100%を設定しようとした試みは間違っていました。なぜなら、flex列では、flexアイテムのheight:
+         100%は「親の利用可能な高さの100%」を意味し、兄弟がすべてのスペースを消費したり、親の高さが厳密に定義されていない
+         場合、ゼロになる可能性があるからです。
+       * .main-areaのflex-grow: 1は、残りのスペースを占めるための正しいプロパティです。しかし、min-height:
+         0がないと、まだ崩壊する可能性があります。
+
+   * `min-height: 0`がflexアイテムにとって重要である理由:
+       * flexboxでは、min-height: auto（デフォルト）が設定されている場合、flexアイテムはflex-growが設定されていても、コン
+         テンツに合わせて拡張することがあります。コンテンツ自体がflexコンテナであるか、パーセンテージの高さを持つ場合、こ
+         れは循環依存または崩壊につながる可能性があります。min-height: 0を明示的に設定すると、flexアイテムは必要に応じて
+         ゼロに縮小できることをブラウザに伝え、flex-growが意図通りに機能し、スペースを正しく分配できるようになります。
+
+  修正に関する私の改訂された仮説:
+
+  解決策は、App.cssの.main-areaにflex-grow: 1とmin-height:
+  0を正しく適用することにあります。この組み合わせは、flexアイテムがflex列で利用可能なスペースを正しく占めることを保証す
+  るための標準的なflexboxパターンであり、子要素がパーセンテージの高さを持つ場合でも機能します。
+
+  以前の`replace`操作が失敗した理由:
+
+  私の主な課題は、replaceツールの厳密な文字列一致要件であり、空白やコメントも含まれます。これにより、繰り返し失敗し、フラストレーションのたまるループに陥りました。
+
+  次のステップ（思考計画、ツール実行なし）：
+
+   1. 現在の`.main-area`のCSSを確認する:
+      App.cssから.main-areaの正確な現在のCSSを取得し、old_stringが完璧であることを確認する必要があります。
+   2. `flex-grow: 1`と`min-height: 0`を適用する: .main-areaがflex-grow: 1とmin-height:
+      0を持つようにreplace操作を構築します。また、flex-direction: column、align-items: center、width: 100%、position:
+      relative、box-sizing: border-boxが存在することを確認します。これらはその意図された役割の一部だからです。
+   3. 検証: 変更後、Phaserインスタンスが安定していることを確認するために再度コンソールログを要求し、コンテナサイズの視覚的
+      な確認を要求します。
+
+  これが私の現在の理解と計画です。.main-areaのflex-grow: 1とmin-height:
+  0の組み合わせに焦点を当てるのが、コンテナ縮小問題に対する正しい道筋だと考えています。
