@@ -9,14 +9,9 @@ export const launch = (parentEl: HTMLElement) => {
     type: Phaser.AUTO,
     parent: parentEl,
     backgroundColor: '#282c34', // Dark background
+    width: 700,
+    height: 540,
     scene: [TitleScene, MainGameScene], // TitleScene is now the first scene
-    scale: {
-      mode: Phaser.Scale.FIT, // Fit the game within the parent container
-      autoCenter: Phaser.Scale.CENTER_BOTH, // Center the game horizontally and vertically
-      parent: parentEl, // Explicitly set the parent for scaling
-      width: '100%', // Base width for scaling calculations
-      height: '100%', // Base height for scaling calculations
-    },
   };
 
   const game = new Phaser.Game(config);

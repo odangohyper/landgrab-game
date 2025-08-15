@@ -44,6 +44,8 @@ export class TitleScene extends Phaser.Scene {
     startButton.on('pointerdown', () => {
       // Emit an event to notify React to start the game
       this.game.events.emit('startGame');
+      // Start the main game scene
+      this.scene.start('MainGameScene');
     });
   }
 }

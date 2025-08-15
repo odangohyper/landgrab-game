@@ -23,6 +23,7 @@ const GameView: React.FC<GameViewProps> = () => {
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [cardTemplates, setCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({});
   const [gameStarted, setGameStarted] = useState<boolean>(false); // New state for game start
+  const [isPhaserReady, setIsPhaserReady] = useState<boolean>(false);
 
   const engineRef = useRef<GameEngine | null>(null);
   const phaserContainerRef = useRef<HTMLDivElement>(null);
@@ -119,6 +120,7 @@ const GameView: React.FC<GameViewProps> = () => {
       console.log('Phaser useEffect: Launching Phaser game.');
       const gameInstance = launch(phaserContainerRef.current);
       gameRef.current = gameInstance; // Assign to ref
+      setIsPhaserReady(true); // Phaser is ready, hide loading overlay
 
       // Listen for startGame event from Phaser TitleScene
       gameInstance.events.on('startGame', async () => {
@@ -134,8 +136,7 @@ const GameView: React.FC<GameViewProps> = () => {
             await writeState(matchId, gameStateWithInitialHand);
           }
         }
-        // Transition to MainGameScene
-        gameInstance?.scene.start('MainGameScene');
+        // The scene transition is now handled by TitleScene.ts
       });
     }
 
@@ -252,54 +253,57 @@ const GameView: React.FC<GameViewProps> = () => {
 
   return (
     <div className="game-container">
-      <div id="phaser-game-container" ref={phaserContainerRef}></div>
+      {/* Main area for Phaser canvas and HUDs */}
+      <div className="main-area">
+        <div id="phaser-game-container" ref={phaserContainerRef}></div>
+        {gameStarted && gameState && (
+          <>
+            {/* Opponent HUD */}
+            {opponentState && (
+              <div className="hud opponent-hud">
+                <h2>対戦相手</h2>
+                <p>資金: {opponentState.funds}</p>
+                <p>不動産: {opponentState.properties}</p>
+              </div>
+            )}
+
+            {/* Player HUD */}
+            {currentPlayerState && (
+              <div className="hud player-hud">
+                <h2>プレイヤー</h2>
+                <p>資金: {currentPlayerState.funds}</p>
+                <p>不動産: {currentPlayerState.properties}</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Player area with hand and actions, only visible when game has started */}
       {gameStarted && gameState && (
-        <>
-          <div className="top-bar">
-            <h1 className="game-title">鹿王院エリザベスの地上げですわ！</h1>
-            <p className="turn-info">Turn: {gameState.turn}</p>
-          </div>
-
-          {/* Opponent HUD */}
-          {opponentState && (
-            <div className="hud opponent-hud">
-              <h2>対戦相手</h2>
-              <p>資金: {opponentState.funds}</p>
-              <p>不動産: {opponentState.properties}</p>
-            </div>
-          )}
-
-          {/* Player HUD */}
-          {currentPlayerState && (
-            <div className="hud player-hud">
-              <h2>プレイヤー</h2>
-              <p>資金: {currentPlayerState.funds}</p>
-              <p>不動産: {currentPlayerState.properties}</p>
-            </div>
-          )}
-
-          <div className="player-area">
-            <div className="bottom-panel">
-              <div className="game-log-area">
-                <div className="log-entries">
-                  {gameState.log.slice().reverse().map((entry, index) => (
-                    <p key={index} className={index === 0 ? 'latest-log' : ''}>{entry}</p>
-                  ))}
-                </div>
-              </div>
-              <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
-
-              <div className="action-bar">
-                <button onClick={handlePlayTurn} disabled={!selectedCardId || gameState.phase === 'GAME_OVER'} className="play-button">
-                  Play Turn
-                </button>
+        <div className="player-area">
+          <div className="bottom-panel">
+            <div className="game-log-area">
+              <div className="log-entries">
+                {gameState.log.slice().reverse().map((entry, index) => (
+                  <p key={index} className={index === 0 ? 'latest-log' : ''}>{entry}</p>
+                ))}
               </div>
             </div>
+            <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
+
+            <div className="action-bar">
+              <button onClick={handlePlayTurn} disabled={!selectedCardId || gameState.phase === 'GAME_OVER'} className="play-button">
+                Play Turn
+              </button>
+            </div>
           </div>
-        </>
+        </div>
       )}
-      {!gameStarted && (
-        <div className={`loading-overlay ${!gameStarted ? 'visible' : ''}`}>
+
+      {/* Loading overlay, only visible before Phaser is ready */}
+      {!isPhaserReady && (
+        <div className="loading-overlay visible">
           <p>Loading game...</p>
         </div>
       )}
