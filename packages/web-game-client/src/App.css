@@ -170,8 +170,8 @@ body {
 .hud {
   background-color: rgba(0, 0, 0, 0.7); /* Slightly darker, more opaque */
   border: 3px solid rgba(0, 255, 255, 0.4); /* Cyan border, now thicker */
-  border-radius: 10px; /* More rounded */
-  padding: 0.8rem 1.2rem; /* Adjusted padding */
+  border-radius: 5px; /* More rounded */
+  padding: 0.8rem 1.8rem; /* Adjusted padding */
   min-width: 130px; /* Slightly wider */
   text-align: center;
   color: #f0f0f0;
@@ -245,6 +245,20 @@ body {
   right: 20px;
   border-color: rgba(0, 255, 0, 0.7); /* Fluorescent Green */
   box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.card-stack-image {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  bottom: 15px; /* コンテナの下端からの位置を調整 */
+  right: 15px; /* コンテナの右端からの位置を調整 */
+  width: 60px; /* カード画像の幅 */
+  height: 120px; /* カード画像の高さ */
+  border: 1px solid #555; /* 軽い枠線 */
+  border-radius: 5px; /* 角を丸める */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* 軽い影 */
 }
 
 /* Player Area for Hand and Actions */

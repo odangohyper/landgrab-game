@@ -311,15 +311,19 @@ const GameView: React.FC<GameViewProps> = () => {
             {/* Opponent Deck Area */}
             {opponentState && (
               <div className="hud opponent-deck-area">
-                <h3>山札</h3>
-                <p>残り: {opponentState.deck.length}</p>
+                <h2>山札: {opponentState.deck.length}枚</h2>
+                {opponentState.deck.length > 0 && (
+                  <img src="images/cards/card_back.jpg" alt="Card Back" className="card-stack-image" />
+                  )}
               </div>
             )}
             {/* Opponent Discard Area */}
             {opponentState && (
               <div className="hud opponent-discard-area">
-                <h3>捨て札</h3>
-                <p>枚数: {opponentState.discard.length}</p>
+                <h2>捨札：{opponentState.discard.length}枚</h2>
+                {opponentState.discard.length > 0 && (
+                  <img src="images/cards/card_back.jpg" alt="Card Back" className="card-stack-image" />
+                  )}
               </div>
             )}
 
@@ -334,15 +338,19 @@ const GameView: React.FC<GameViewProps> = () => {
             {/* Player Deck Area */}
             {currentPlayerState && (
               <div className="hud player-deck-area">
-                <h3>山札</h3>
-                <p>残り: {currentPlayerState.deck.length}</p>
+                <h2>山札: {currentPlayerState.deck.length}枚</h2>
+                {currentPlayerState.deck.length > 0 && (
+                  <img src="images/cards/card_back.jpg" alt="Card Back" className="card-stack-image" />
+                  )}
               </div>
             )}
             {/* Player Discard Area */}
             {currentPlayerState && (
               <div className="hud player-discard-area">
-                <h3>捨て札</h3>
-                <p>枚数: {currentPlayerState.discard.length}</p>
+                <h2>捨札:{currentPlayerState.discard.length}枚</h2>
+                {currentPlayerState.discard.length > 0 && (
+                  <img src="images/cards/card_back.jpg" alt="Card Back" className="card-stack-image" />
+                  )}
               </div>
             )}
           </>
