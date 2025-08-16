@@ -44,7 +44,10 @@ describe('AI Functions', () => {
 
   describe('calculate_weights', () => {
     it('should return an empty map if npcPlayer is not found', () => {
-      const stateWithoutNpc = { ...mockGameState, players: [mockOpponent] };
+      const stateWithoutNpc: GameState = {
+        ...mockGameState,
+        players: [mockOpponent], // mockPlayerを含まない
+      };
       const weights = calculate_weights(stateWithoutNpc, [], mockCardTemplates);
       expect(weights.size).toBe(0);
     });
@@ -96,6 +99,26 @@ describe('AI Functions', () => {
       // FRAUD: Base (1) + fraud success (5) = 6 (assuming opponent can acquire)
       expect(weightsWithOpponentFunds.get('c3')).toBe(1 + 5); 
     });
+
+    it('should assign weights to DEFEND and FRAUD when opponent cannot acquire', () => {
+      mockPlayer.funds = 5;
+      mockOpponent.funds = 0; // 相手は買収できない
+      mockPlayer.hand = [
+        { id: 'c1', templateId: 'ACQUIRE' },
+        { id: 'c2', templateId: 'DEFEND' },
+        { id: 'c3', templateId: 'FRAUD' },
+      ];
+      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
+
+      // ACQUIRE: 相手が買収できないので、ACQUIREの重みは変わらない
+      expect(weights.get('c1')).toBe(1 + 4 + 3); // Base + opponent properties + sufficient funds
+
+      // DEFEND: 相手が買収できないので、DEFENDの重みは基本値のみ
+      expect(weights.get('c2')).toBe(1);
+
+      // FRAUD: 相手が買収できないので、FRAUDの重みは基本値のみ
+      expect(weights.get('c3')).toBe(1);
+    });
   });
 
   describe('choose_card', () => {
@@ -136,6 +159,13 @@ describe('AI Functions', () => {
       ]));
       const action = choose_card(mockGameState, mockPlayer.hand, 123, mockCardTemplates);
       expect(action).toEqual({ playerId: 'npc-player-id', actionType: 'play_card', cardId: 'c1' });
+      jest.restoreAllMocks(); // Clean up mock
+    });
+
+    it('should return null if no action is chosen (e.g., weights are empty)', () => {
+      jest.spyOn(require('./ai'), 'calculate_weights').mockReturnValue(new Map()); // 空のMapを返すようにモック
+      const action = choose_card(mockGameState, mockPlayer.hand, 123, mockCardTemplates);
+      expect(action).toBeNull();
       jest.restoreAllMocks(); // Clean up mock
     });
   });

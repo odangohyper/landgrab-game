@@ -85,6 +85,24 @@ describe('GameEngine', () => {
     expect(state.players[1].discard).toEqual([]);
   });
 
+  it('should hydrate lastActions in constructor if it is null/undefined', () => {
+    const stateWithNullLastActions: GameState = {
+      ...initialState,
+      lastActions: null as any,
+    };
+    const hydratedEngine = new GameEngine(stateWithNullLastActions, mockCardTemplates);
+    const state = hydratedEngine.getState();
+    expect(state.lastActions).toEqual([]);
+
+    const stateWithUndefinedLastActions: GameState = {
+      ...initialState,
+      lastActions: undefined as any,
+    };
+    const hydratedEngine2 = new GameEngine(stateWithUndefinedLastActions, mockCardTemplates);
+    const state2 = hydratedEngine2.getState();
+    expect(state2.lastActions).toEqual([]);
+  });
+
   it('should advance the turn and draw cards', () => {
     // ターンを進める前のプレイヤー1の状態を取得します。
     const player1 = engine.getState().players[0];
@@ -258,8 +276,96 @@ describe('GameEngine', () => {
       // プレイヤー2の資産が変化しないことを検証します。
       expect(newPlayer2.properties).toBe(1);
       // ゲームログに両プレイヤーの「資金集め」が記録されていることを検証します。
-      expect(newState.log).toContain('プレイヤーの行動：「資金集め」');
-      expect(newState.log).toContain('対戦相手の行動：「資金集め」');
+      expect(newState.log).toContain('プレイヤーは「資金集め」コマンドを実行した');
+      expect(newState.log).toContain('対戦相手は「資金集め」コマンドを実行した');
+    });
+
+    it('should resolve ACQUIRE successfully when opponent plays nothing', () => {
+      player1.hand = [{ id: 'p1card', templateId: 'ACQUIRE' }];
+      player1.funds = 2;
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const newState = testEngine.applyAction(p1Action, null);
+
+      expect(newState.players[0].properties).toBe(2); // 資産が1増える
+      expect(newState.players[1].properties).toBe(0); // 相手の資産が1減る
+      expect(newState.log).toContain('プレイヤーは「買収」をプレイした');
+      expect(newState.log).toContain('プレイヤーの買収は成功した！');
+    });
+
+    it('should resolve ACQUIRE successfully when opponent collects funds', () => {
+      player1.hand = [{ id: 'p1card', templateId: 'ACQUIRE' }];
+      player1.funds = 2;
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'collect_funds' };
+      const newState = testEngine.applyAction(p1Action, p2Action);
+
+      expect(newState.players[0].properties).toBe(2); // 資産が1増える
+      expect(newState.players[1].properties).toBe(0); // 相手の資産が1減る
+      expect(newState.players[1].funds).toBe(1); // 相手の資金が増える
+      expect(newState.log).toContain('プレイヤーは「買収」をプレイした');
+      expect(newState.log).toContain('プレイヤーの買収は成功した！');
+      expect(newState.log).toContain('対戦相手は「資金集め」コマンドを実行した');
+    });
+
+    it('should resolve opponent ACQUIRE successfully when player plays nothing', () => {
+      player2.hand = [{ id: 'p2card', templateId: 'ACQUIRE' }];
+      player2.funds = 2;
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'play_card', cardId: 'p2card' };
+      const newState = testEngine.applyAction(null, p2Action);
+
+      expect(newState.players[1].properties).toBe(2); // 資産が1増える
+      expect(newState.players[0].properties).toBe(0); // 相手の資産が1減る
+      expect(newState.log).toContain('対戦相手は「買収」をプレイした');
+      expect(newState.log).toContain('対戦相手の買収は成功した！');
+    });
+
+    it('should resolve opponent ACQUIRE successfully when player collects funds', () => {
+      player2.hand = [{ id: 'p2card', templateId: 'ACQUIRE' }];
+      player2.funds = 2;
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'collect_funds' };
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'play_card', cardId: 'p2card' };
+      const newState = testEngine.applyAction(p1Action, p2Action);
+
+      expect(newState.players[1].properties).toBe(2); // 資産が1増える
+      expect(newState.players[0].properties).toBe(0); // 相手の資産が1減る
+      expect(newState.players[0].funds).toBe(1); // 相手の資金が増える
+      expect(newState.log).toContain('対戦相手は「買収」をプレイした');
+      expect(newState.log).toContain('対戦相手の買収は成功した！');
+      expect(newState.log).toContain('プレイヤーは「資金集め」コマンドを実行した');
+    });
+
+    it('should resolve DEFEND when opponent plays nothing', () => {
+      player1.hand = [{ id: 'p1card', templateId: 'DEFEND' }];
+      player1.funds = 0;
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const newState = testEngine.applyAction(p1Action, null);
+
+      expect(newState.players[0].properties).toBe(1); // 資産は変化しない
+      expect(newState.log).toContain('プレイヤーは「防衛」をプレイした');
+    });
+
+    it('should resolve FRAUD when opponent plays nothing (fraud fails)', () => {
+      player1.hand = [{ id: 'p1card', templateId: 'FRAUD' }];
+      player1.funds = 1;
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const newState = testEngine.applyAction(p1Action, null);
+
+      expect(newState.players[0].properties).toBe(1); // 資産は変化しない
+      expect(newState.log).toContain('プレイヤーは「詐欺」をプレイした');
+      // 詐欺が成功しないので、詐欺成功のログは含まれない
+      expect(newState.log).not.toContain('プレイヤーの買収は詐欺で返り討ちにあった！');
     });
 
     it('should allow a player to use "資金集め" command when they cannot afford any card', () => {
@@ -287,7 +393,7 @@ describe('GameEngine', () => {
         // プレイヤー1の資産が変化しないことを検証します。
         expect(newPlayer1.properties).toBe(1);
         // ゲームログにプレイヤー1の「資金集め」が記録されていることを検証します。
-        expect(newState.log).toContain('プレイヤーの行動：「資金集め」');
+        expect(newState.log).toContain('プレイヤーは「資金集め」コマンドを実行した');
         // プレイヤー2の資金と資産が変化しないことを検証します。
         expect(newPlayer2.funds).toBe(0);
         expect(newPlayer2.properties).toBe(1);
@@ -315,5 +421,31 @@ describe('GameEngine', () => {
 
     // プレイヤー2の資産が0になり、ゲームのフェーズが`GAME_OVER`になっていることを検証します。
     expect(newState.phase).toBe('GAME_OVER');
+  });
+
+  it('should end the game and log message when player 1 loses all properties', () => {
+    const testState = JSON.parse(JSON.stringify(initialState));
+    const player1 = testState.players.find(p => p.playerId === 'player1-id')!;
+    player1.properties = 0; // プレイヤー1の不動産を0にする
+
+    const testEngine = new GameEngine(testState, mockCardTemplates);
+    // applyActionを呼び出すことでcheckWinConditionがトリガーされる
+    const newState = testEngine.applyAction(null, null); // アクションは関係ないのでnull
+
+    expect(newState.phase).toBe('GAME_OVER');
+    expect(newState.log).toContain('プレイヤーの不動産が0になった！対戦相手の勝利！');
+  });
+
+  it('should end the game and log message when player 2 loses all properties', () => {
+    const testState = JSON.parse(JSON.stringify(initialState));
+    const player2 = testState.players.find(p => p.playerId === 'player2-id')!;
+    player2.properties = 0; // プレイヤー2の不動産を0にする
+
+    const testEngine = new GameEngine(testState, mockCardTemplates);
+    // applyActionを呼び出すことでcheckWinConditionがトリガーされる
+    const newState = testEngine.applyAction(null, null); // アクションは関係ないのでnull
+
+    expect(newState.phase).toBe('GAME_OVER');
+    expect(newState.log).toContain('対戦相手の不動産が0になった！プレイヤーの勝利！');
   });
 });
