@@ -112,7 +112,7 @@ body {
   height: 100%;
   box-sizing: border-box;
   position: relative;
-  padding: 1rem; /* Add overall padding to the game container */
+  padding: 1.0rem; /* Add overall padding to the game container */
 }
 
 /* Top bar for title and turn info */
@@ -173,10 +173,13 @@ body {
   border-radius: 5px; /* More rounded */
   padding: 0.8rem 1.8rem; /* Adjusted padding */
   min-width: 130px; /* Slightly wider */
-  text-align: center;
   color: #f0f0f0;
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.2); /* Subtle glow */
   z-index: 10; /* Ensure HUDs are above Phaser canvas */
+  display: flex;
+  flex-direction: column; /* コンテンツを縦に並べる */
+  justify-content: flex-start; /* 垂直方向を上端詰めに変更 */
+  align-items: center; /* 水平方向の中央揃え */
 }
 
 .hud h2 {
@@ -193,7 +196,7 @@ body {
 
 .opponent-hud {
   position: absolute;
-  top: 00px; /* Adjusted to be within main-area padding */
+  top: 0px; /* Adjusted to be within main-area padding */
   left: 20px; /* Adjusted to be within main-area padding */
   border-color: rgba(255, 0, 0, 0.7); /* Fluorescent Red */
   box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
@@ -209,19 +212,19 @@ body {
 
 .opponent-deck-area {
   position: absolute;
-  top: 150px; /* Adjust based on opponent-hud height */
+  top: 145px; /* Adjust based on opponent-hud height */
   left: 20px;
-  height: 160px;
-  max-height: 160px;
+  height: 167.5px;
+  max-height: 167.5px;
   border-color: rgba(255, 0, 0, 0.7); /* Fluorescent Red */
   box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
 }
 
 .opponent-discard-area {
   position: absolute;
-  top: 360px; /* Adjust based on opponent-deck-area height */
-  height: 160px;
-  max-height: 160px;
+  top: 350px; /* Adjust based on opponent-deck-area height */
+  height: 165px;
+  max-height: 165px;
   left: 20px;
   border-color: rgba(255, 0, 0, 0.7); /* Fluorescent Red */
   box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
@@ -229,19 +232,19 @@ body {
 
 .player-deck-area {
   position: absolute;
-  top: 150px; /* Adjust based on player-hud height */
+  top: 145px; /* Adjust based on player-hud height */
   right: 20px;
-  height: 160px;
-  max-height: 160px;
+  height: 167.5px;
+  max-height: 167.5px;
   border-color: rgba(0, 255, 0, 0.7); /* Fluorescent Green */
   box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
 }
 
 .player-discard-area {
   position: absolute;
-  top: 360px; /* Adjust based on player-deck-area height */
-  height: 160px;
-  max-height: 160px;
+  top: 350px; /* Adjust based on player-deck-area height */
+  height: 165px;
+  max-height: 165px;
   right: 20px;
   border-color: rgba(0, 255, 0, 0.7); /* Fluorescent Green */
   box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
@@ -250,11 +253,13 @@ body {
 .card-stack-image {
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 60px; /* カード画像の幅 */
-  height: 120px; /* カード画像の高さ */
+  width: 54px; /* カード画像の幅 */
+  height: 108px; /* カード画像の高さ */
   border: 1px solid #555; /* 軽い枠線 */
   border-radius: 5px; /* 角を丸める */
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* 軽い影 */
+  top: 55%;
+  left: 50%;
 }
 
 /* Player Area for Hand and Actions */

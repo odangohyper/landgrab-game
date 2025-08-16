@@ -15,7 +15,7 @@ interface GameViewProps {
   // Props will be added later if needed, e.g., onGameEnd
 }
 
-const MAX_STACK_IMAGES = 5; // 表示する画像の最大枚数
+const MAX_STACK_IMAGES = 6; // 表示する画像の最大枚数
 const STACK_OFFSET_X = 2;   // X軸のずれ量 (px)
 const STACK_OFFSET_Y = 2;   // Y軸のずれ量 (px)
 
@@ -315,7 +315,7 @@ const GameView: React.FC<GameViewProps> = () => {
             {/* Opponent Deck Area */}
             {opponentState && (
               <div className="hud opponent-deck-area">
-                <p>山札：{opponentState.deck.length}枚</p>
+                <h2>山札：{opponentState.deck.length}枚</h2>
                 {Array.from({ length: Math.min(opponentState.deck.length, MAX_STACK_IMAGES) }).map((_, index) => (
                   <img
                     key={`opponent-deck-${index}`}
@@ -323,8 +323,7 @@ const GameView: React.FC<GameViewProps> = () => {
                     alt="Card Back"
                     className="card-stack-image"
                     style={{
-                      bottom: `${5 + index * STACK_OFFSET_Y}px`,
-                      right: `${5 + index * STACK_OFFSET_X}px`,
+                      transform: `translate(calc(-50% + ${index * STACK_OFFSET_X}px), calc(-50% + ${index *STACK_OFFSET_Y}px))`,
                       zIndex: index,
                     }}
                   />
@@ -334,7 +333,7 @@ const GameView: React.FC<GameViewProps> = () => {
             {/* Opponent Discard Area */}
             {opponentState && (
               <div className="hud opponent-discard-area">
-                <p>捨て札：{opponentState.discard.length}枚</p>
+                <h2>捨札：{opponentState.discard.length}枚</h2>
                 {Array.from({ length: Math.min(opponentState.discard.length, MAX_STACK_IMAGES) }).map((_, index) => (
                   <img
                     key={`opponent-discard-${index}`}
@@ -342,8 +341,7 @@ const GameView: React.FC<GameViewProps> = () => {
                     alt="Card Back"
                     className="card-stack-image"
                     style={{
-                      bottom: `${5 + index * STACK_OFFSET_Y}px`,
-                      right: `${5 + index * STACK_OFFSET_X}px`,
+                      transform: `translate(calc(-50% + ${index * STACK_OFFSET_X}px), calc(-50% + ${index *STACK_OFFSET_Y}px))`,
                       zIndex: index,
                     }}
                   />
@@ -362,7 +360,7 @@ const GameView: React.FC<GameViewProps> = () => {
             {/* Player Deck Area */}
             {currentPlayerState && (
               <div className="hud player-deck-area">
-                <p>山札：{currentPlayerState.deck.length}枚</p>
+                <h2>山札：{currentPlayerState.deck.length}枚</h2>
                 {Array.from({ length: Math.min(currentPlayerState.deck.length, MAX_STACK_IMAGES) }).map((_, index) => (
                   <img
                     key={`player-deck-${index}`}
@@ -370,8 +368,7 @@ const GameView: React.FC<GameViewProps> = () => {
                     alt="Card Back"
                     className="card-stack-image"
                     style={{
-                      bottom: `${5 + index * STACK_OFFSET_Y}px`,
-                      right: `${5 + index * STACK_OFFSET_X}px`,
+                      transform: `translate(calc(-50% + ${index * STACK_OFFSET_X}px), calc(-50% + ${index *STACK_OFFSET_Y}px))`,
                       zIndex: index,
                     }}
                   />
@@ -381,7 +378,7 @@ const GameView: React.FC<GameViewProps> = () => {
             {/* Player Discard Area */}
             {currentPlayerState && (
               <div className="hud player-discard-area">
-                <p>捨て札：{currentPlayerState.discard.length}枚</p>
+                <h2>捨札：{currentPlayerState.discard.length}枚</h2>
                 {Array.from({ length: Math.min(currentPlayerState.discard.length, MAX_STACK_IMAGES) }).map((_, index) => (
                   <img
                     key={`player-discard-${index}`}
@@ -389,8 +386,7 @@ const GameView: React.FC<GameViewProps> = () => {
                     alt="Card Back"
                     className="card-stack-image"
                     style={{
-                      bottom: `${5 + index * STACK_OFFSET_Y}px`,
-                      right: `${5 + index * STACK_OFFSET_X}px`,
+                      transform: `translate(calc(-50% + ${index * STACK_OFFSET_X}px), calc(-50% + ${index *STACK_OFFSET_Y}px))`,
                       zIndex: index,
                     }}
                   />
