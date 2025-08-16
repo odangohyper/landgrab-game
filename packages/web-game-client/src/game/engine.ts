@@ -166,7 +166,7 @@ export class GameEngine {
         player1.discard.push(p1Card!);
         resolved.push({ playerId: player1.playerId, cardTemplateId: p1Template!.templateId });
         const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
-        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の行動「${p1Template!.name}」をプレイした`);
+        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の行動：「${p1Template!.name}」`);
     }
     if (p2Played) {
         player2.funds -= p2Template!.cost;

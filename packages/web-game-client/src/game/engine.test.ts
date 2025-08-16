@@ -290,7 +290,7 @@ describe('GameEngine', () => {
 
       expect(newState.players[0].properties).toBe(2); // 資産が1増える
       expect(newState.players[1].properties).toBe(0); // 相手の資産が1減る
-      expect(newState.log).toContain('プレイヤーは「買収」をプレイした');
+      expect(newState.log).toContain('プレイヤーの行動：「買収」');
       expect(newState.log).toContain('プレイヤーの買収は成功した！');
     });
 
@@ -306,7 +306,7 @@ describe('GameEngine', () => {
       expect(newState.players[0].properties).toBe(2); // 資産が1増える
       expect(newState.players[1].properties).toBe(0); // 相手の資産が1減る
       expect(newState.players[1].funds).toBe(1); // 相手の資金が増える
-      expect(newState.log).toContain('プレイヤーは「買収」をプレイした');
+      expect(newState.log).toContain('プレイヤーの行動：「買収」');
       expect(newState.log).toContain('プレイヤーの買収は成功した！');
       expect(newState.log).toContain('対戦相手は「資金集め」コマンドを実行した');
     });
@@ -321,7 +321,7 @@ describe('GameEngine', () => {
 
       expect(newState.players[1].properties).toBe(2); // 資産が1増える
       expect(newState.players[0].properties).toBe(0); // 相手の資産が1減る
-      expect(newState.log).toContain('対戦相手は「買収」をプレイした');
+      expect(newState.log).toContain('対戦相手の行動：「買収」');
       expect(newState.log).toContain('対戦相手の買収は成功した！');
     });
 
@@ -337,7 +337,7 @@ describe('GameEngine', () => {
       expect(newState.players[1].properties).toBe(2); // 資産が1増える
       expect(newState.players[0].properties).toBe(0); // 相手の資産が1減る
       expect(newState.players[0].funds).toBe(1); // 相手の資金が増える
-      expect(newState.log).toContain('対戦相手は「買収」をプレイした');
+      expect(newState.log).toContain('対戦相手の行動：「買収」');
       expect(newState.log).toContain('対戦相手の買収は成功した！');
       expect(newState.log).toContain('プレイヤーは「資金集め」コマンドを実行した');
     });
@@ -351,7 +351,7 @@ describe('GameEngine', () => {
       const newState = testEngine.applyAction(p1Action, null);
 
       expect(newState.players[0].properties).toBe(1); // 資産は変化しない
-      expect(newState.log).toContain('プレイヤーは「防衛」をプレイした');
+      expect(newState.log).toContain('プレイヤーの行動：「防衛」');
     });
 
     it('should resolve FRAUD when opponent plays nothing (fraud fails)', () => {
@@ -363,7 +363,7 @@ describe('GameEngine', () => {
       const newState = testEngine.applyAction(p1Action, null);
 
       expect(newState.players[0].properties).toBe(1); // 資産は変化しない
-      expect(newState.log).toContain('プレイヤーは「詐欺」をプレイした');
+      expect(newState.log).toContain('プレイヤーの行動：「詐欺」');
       // 詐欺が成功しないので、詐欺成功のログは含まれない
       expect(newState.log).not.toContain('プレイヤーの買収は詐欺で返り討ちにあった！');
     });

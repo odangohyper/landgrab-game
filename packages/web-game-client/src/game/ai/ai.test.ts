@@ -110,8 +110,8 @@ describe('AI Functions', () => {
       ];
       const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
 
-      // ACQUIRE: 相手が買収できないので、ACQUIREの重みは変わらない
-      expect(weights.get('c1')).toBe(1 + 4 + 3); // Base + opponent properties + sufficient funds
+      // ACQUIRE: 相手の資産は1なので、基本(1) + 資産(2) + 資金(3) = 6
+      expect(weights.get('c1')).toBe(1 + 2 + 3);
 
       // DEFEND: 相手が買収できないので、DEFENDの重みは基本値のみ
       expect(weights.get('c2')).toBe(1);
@@ -162,10 +162,11 @@ describe('AI Functions', () => {
       jest.restoreAllMocks(); // Clean up mock
     });
 
-    it('should return null if no action is chosen (e.g., weights are empty)', () => {
+    it('should return a collect_funds action if no action is chosen (e.g., weights are empty)', () => {
       jest.spyOn(require('./ai'), 'calculate_weights').mockReturnValue(new Map()); // 空のMapを返すようにモック
       const action = choose_card(mockGameState, mockPlayer.hand, 123, mockCardTemplates);
-      expect(action).toBeNull();
+      // フォールバックとして資金集めが選択される
+      expect(action).toEqual({ playerId: 'npc-player-id', actionType: 'collect_funds' });
       jest.restoreAllMocks(); // Clean up mock
     });
   });
