@@ -280,37 +280,96 @@ body {
 
 .action-bar {
   display: flex;
+  flex-direction: column; /* Changed to column */
   justify-content: center;
   align-items: center;
-  flex-grow: 1;
+  height: 100%; /* Take full height of bottom-panel */
+  width: auto; /* Allow width to shrink to content */
+  gap: 10px; /* Spacing between buttons */
+  flex-grow: 1; /* Added to make it expand */
 }
 
 .play-button {
-  height: 240px;
+  height: 120px; /* Adjusted height */
   background-color: #00bfff;
   color: #1a1a1a;
   border: none;
-  padding: 15px 30px;
-  font-size: 1.5rem;
+  padding: 10px 20px; /* Adjusted padding */
+  font-size: 10; /* Adjusted font size */
   font-weight: bold;
   border-radius: 10px;
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.1s ease;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+  width: 100%; /* Fill action-bar width */
 }
 
 .play-button:hover:not(:disabled) {
-  height:  240px;
+  height:  120px; /* Adjusted height */
   background-color: #0099cc;
   transform: translateY(-3px) scale(1.05);
 }
 
 .play-button:disabled {
-  height:  240px;
+  height:  120px; /* Adjusted height */
   background-color: #555;
   color: #888;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* Action Card Item (for "資金集め" button) */
+.action-card-item {
+  /* Base styles from .card-item */
+  border: 2px solid #555;
+  border-radius: 10px;
+  font-size: 10; /* Adjusted font size */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Center content vertically */
+  align-items: center;
+  background-color: #4a4a4a;
+  cursor: pointer;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+
+  /* Size to match play-button height, and a reasonable width */
+  height: 120px; /* Adjusted height */
+  width: 100%; /* Fill action-bar width */
+  font-size: 10; /* Adjusted font size */
+  font-weight: bold;
+  color: #f0f0f0;
+  text-align: center;
+}
+
+.action-card-item:hover {
+  /* Mimic .card-item.playable:hover */
+  transform: translateY(-8px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 255, 255, 0.6);
+  border-color: #00ffff;
+}
+
+.action-card-item.selected {
+  /* Mimic .card-item.selected */
+  border-color: #ffcc00;
+  box-shadow: 0 0 25px rgba(255, 204, 0, 0.8);
+  transform: translateY(-10px) scale(1.08);
+}
+
+.action-card-item.selected:hover {
+  /* Mimic .card-item.selected:hover */
+  transform: translateY(-10px) scale(1.08); /* Keep selected transform */
+  box-shadow: 0 0 25px rgba(255, 204, 0, 0.8); /* Keep selected shadow */
+  border-color: #ffcc00; /* Keep selected border color */
+  cursor: default; /* Change cursor to indicate no further action on hover */
+}
+
+.action-card-item .action-card-name {
+  /* Style for the text inside the button */
+  margin: 0;
+  padding: 0;
 }
 
 /* HandView Container */
@@ -374,7 +433,16 @@ body {
 .card-item.selected {
   border-color: #ffcc00;
   box-shadow: 0 0 25px rgba(255, 204, 0, 0.8);
-  transform: translateY(-15px) scale(1.1);
+  transform: translateY(-10px) scale(1.08);
+}
+
+.card-item.selected:hover {
+  /* Prevent any additional hover effects when already selected */
+  /* We want it to maintain its 'selected' appearance */
+  transform: translateY(-10px) scale(1.08); /* Keep selected transform */
+  box-shadow: 0 0 25px rgba(255, 204, 0, 0.8); /* Keep selected shadow */
+  border-color: #ffcc00; /* Keep selected border color */
+  cursor: default; /* Change cursor to indicate no further action on hover */
 }
 
 .card-item.disabled {

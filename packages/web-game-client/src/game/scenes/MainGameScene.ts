@@ -24,6 +24,25 @@ export class MainGameScene extends Phaser.Scene {
     // The main game area is intentionally left blank, as HUDs and player info
     // are now handled by the React UI. This scene is only for card animations
     // and game over messages.
+
+    // Listen for custom event to load card images
+    this.game.events.on('loadCardImages', this.loadCardImages, this);
+  }
+
+  private loadCardImages() {
+    const cardTemplates: { [templateId: string]: CardTemplate } = this.registry.get('cardTemplates');
+    if (cardTemplates) {
+      for (const templateId in cardTemplates) {
+        if (cardTemplates.hasOwnProperty(templateId)) {
+          // Only load if not already in cache
+          if (!this.textures.exists(templateId)) {
+            this.load.image(templateId, `images/cards/${templateId}.jpg`);
+          }
+        }
+      }
+      // Start loading the newly added images
+      this.load.start();
+    }
   }
 
   public displayTurnActions(actions: ResolvedAction[] | null) {
@@ -144,13 +163,7 @@ export class MainGameScene extends Phaser.Scene {
               });
             };
 
-            if (!this.textures.exists(templateId)) {
-              this.load.image(templateId, `images/cards/${templateId}.jpg`);
-              this.load.once(`filecomplete-image-${templateId}`, flipCard);
-              this.load.start();
-            } else {
-              flipCard();
-            }
+            flipCard();
           }
         });
       }

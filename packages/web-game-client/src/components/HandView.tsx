@@ -48,6 +48,8 @@ const HandView: React.FC<HandViewProps> = ({ hand, onCardSelect, playableCardIds
             'card-item', // すべてのカードアイテムに共通の基本クラス
             isPlayable ? 'playable' : 'disabled', // プレイ可能なら'playable'、そうでなければ'disabled'
             isSelected ? 'selected' : '', // 選択中なら'selected'
+            // Add this line: If selected, add 'no-hover' class
+            isSelected ? 'no-hover' : '',
           ].join(' ').trim(); // 配列をスペースで結合し、余分なスペースをトリムします。
 
           return (
@@ -55,8 +57,16 @@ const HandView: React.FC<HandViewProps> = ({ hand, onCardSelect, playableCardIds
             <div
               key={card.id}
               className={cardClasses} // 動的に生成されたCSSクラスを適用
-              // クリックハンドラ: カードがプレイ可能な場合のみ`onCardSelect`を呼び出します。
-              onClick={() => isPlayable && onCardSelect(card.id)}
+              // Modify onClick handler
+              onClick={() => {
+                if (isSelected) {
+                  // If already selected, deselect it
+                  onCardSelect(null); // Assuming null deselects
+                } else if (isPlayable) {
+                  // Otherwise, if playable, select it
+                  onCardSelect(card.id);
+                }
+              }}
             >
               {/* カード画像が存在する場合のみ表示します */}
               {imageUrl && <img src={imageUrl} alt={template?.name} className="card-image" />}

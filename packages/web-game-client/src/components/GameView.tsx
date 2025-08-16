@@ -198,6 +198,7 @@ const GameView: React.FC<GameViewProps> = () => {
     if (gameRef.current && gameState && Object.keys(cardTemplates).length > 0 && clientId) {
       gameRef.current.registry.set('gameState', gameState);
       gameRef.current.registry.set('cardTemplates', cardTemplates);
+      gameRef.current.events.emit('loadCardImages'); // Emit event to load card images
       gameRef.current.registry.set('clientId', clientId);
 
       if (gameState.lastActions && gameState.lastActions.length > 0) {
@@ -313,6 +314,21 @@ const GameView: React.FC<GameViewProps> = () => {
             <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
 
             <div className="action-bar">
+              {/* 資金集めボタン */}
+              <div
+                id="gain-funds-button" // Unique ID for the button
+                className={`action-card-item ${selectedCardId === 'GAIN_FUNDS' ? 'selected' : ''}`} // Apply styling and selected class
+                onClick={() => {
+                  if (selectedCardId === 'GAIN_FUNDS') {
+                    handleCardSelect(null);
+                  } else {
+                    handleCardSelect('GAIN_FUNDS');
+                  }
+                }} // Use GAIN_FUNDS as its ID
+              >
+                <p className="action-card-name">資金集め</p>
+              </div>
+
               <button onClick={handlePlayTurn} disabled={!selectedCardId || gameState.phase === 'GAME_OVER'} className="play-button">
                 Play Turn
               </button>
