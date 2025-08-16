@@ -105,7 +105,7 @@ export class MainGameScene extends Phaser.Scene {
     const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
     overlay.setDepth(100);
 
-    const gameOverText = this.add.text(width / 2, height / 2, message, {
+    const gameOverText = this.add.text(width / 2, height / 2 - 50, message, {
       fontSize: '52px', // Reduced font size
       color: color,
       stroke: '#000000',
@@ -113,6 +113,30 @@ export class MainGameScene extends Phaser.Scene {
       align: 'center'
     }).setOrigin(0.5);
     gameOverText.setDepth(101);
+
+    // --- ここからボタン追加ロジック ---
+    const buttonsContainer = this.add.dom(width / 2, height / 2 + 70).createFromHTML(`
+      <div class="game-over-buttons">
+        <button id="title-screen-button" class="game-over-button">タイトル画面に戻る</button>
+        <button id="share-twitter-button" class="game-over-button">X(Twitter)で共有する</button>
+      </div>
+    `);
+    buttonsContainer.setDepth(102);
+
+    // ボタンのクリックイベントリスナー
+    buttonsContainer.addListener('click');
+    buttonsContainer.on('click', (event: MouseEvent) => {
+      if (event.target instanceof HTMLButtonElement) {
+        if (event.target.id === 'title-screen-button') {
+          console.log('タイトル画面に戻るボタンがクリックされました');
+          // TODO: タイトル画面への遷移ロジック
+        } else if (event.target.id === 'share-twitter-button') {
+          console.log('X(Twitter)で共有するボタンがクリックされました');
+          // TODO: X(Twitter)共有ロジック
+        }
+      }
+    });
+    // --- ここまでボタン追加ロジック ---
   }
 
   private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent'): Phaser.GameObjects.Container {

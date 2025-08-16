@@ -12,6 +12,9 @@ export const launch = (parentEl: HTMLElement) => {
     width: 700,
     height: 540,
     scene: [TitleScene, MainGameScene], // TitleScene is now the first scene
+    dom: {
+      createContainer: true // ここを追加
+    }
   };
 
   const game = new Phaser.Game(config);

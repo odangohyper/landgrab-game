@@ -207,6 +207,46 @@ body {
   box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
 }
 
+.opponent-deck-area {
+  position: absolute;
+  top: 150px; /* Adjust based on opponent-hud height */
+  left: 20px;
+  height: 160px;
+  max-height: 160px;
+  border-color: rgba(255, 0, 0, 0.7); /* Fluorescent Red */
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+}
+
+.opponent-discard-area {
+  position: absolute;
+  top: 360px; /* Adjust based on opponent-deck-area height */
+  height: 160px;
+  max-height: 160px;
+  left: 20px;
+  border-color: rgba(255, 0, 0, 0.7); /* Fluorescent Red */
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+}
+
+.player-deck-area {
+  position: absolute;
+  top: 150px; /* Adjust based on player-hud height */
+  right: 20px;
+  height: 160px;
+  max-height: 160px;
+  border-color: rgba(0, 255, 0, 0.7); /* Fluorescent Green */
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.player-discard-area {
+  position: absolute;
+  top: 360px; /* Adjust based on player-deck-area height */
+  height: 160px;
+  max-height: 160px;
+  right: 20px;
+  border-color: rgba(0, 255, 0, 0.7); /* Fluorescent Green */
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
 /* Player Area for Hand and Actions */
 .player-area {
   width: 100%;
@@ -465,6 +505,40 @@ body {
   margin-top: 5px;
   color: #f0f0f0;
   font-weight: bold;
+}
+
+/* Game Over Buttons */
+.game-over-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Space between buttons */
+  align-items: center;
+  margin-top: 20px; /* Space below game over text */
+}
+
+.game-over-button {
+  background-color: #00bfff; /* Brighter blue */
+  color: #1a1a1a;
+  border: none;
+  padding: 15px 30px; /* Generous padding */
+  font-size: 1.2rem; /* Larger font */
+  font-weight: bold;
+  border-radius: 10px; /* Rounded corners */
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4); /* Stronger shadow */
+  min-width: 250px; /* Ensure buttons are wide enough */
+}
+
+.game-over-button:hover {
+  background-color: #0099cc; /* Darker blue on hover */
+  transform: translateY(-3px) scale(1.02); /* Lift and slightly scale */
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6); /* More pronounced shadow on hover */
+}
+
+.game-over-button:active {
+  transform: scale(0.98); /* Press effect */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .loading-overlay {

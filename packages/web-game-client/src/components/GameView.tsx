@@ -308,6 +308,20 @@ const GameView: React.FC<GameViewProps> = () => {
                 <p>不動産: {opponentState.properties}</p>
               </div>
             )}
+            {/* Opponent Deck Area */}
+            {opponentState && (
+              <div className="hud opponent-deck-area">
+                <h3>山札</h3>
+                <p>残り: {opponentState.deck.length}</p>
+              </div>
+            )}
+            {/* Opponent Discard Area */}
+            {opponentState && (
+              <div className="hud opponent-discard-area">
+                <h3>捨て札</h3>
+                <p>枚数: {opponentState.discard.length}</p>
+              </div>
+            )}
 
             {/* Player HUD */}
             {currentPlayerState && (
@@ -315,6 +329,20 @@ const GameView: React.FC<GameViewProps> = () => {
                 <h2>プレイヤー</h2>
                 <p>資金: {currentPlayerState.funds}</p>
                 <p>不動産: {currentPlayerState.properties}</p>
+              </div>
+            )}
+            {/* Player Deck Area */}
+            {currentPlayerState && (
+              <div className="hud player-deck-area">
+                <h3>山札</h3>
+                <p>残り: {currentPlayerState.deck.length}</p>
+              </div>
+            )}
+            {/* Player Discard Area */}
+            {currentPlayerState && (
+              <div className="hud player-discard-area">
+                <h3>捨て札</h3>
+                <p>枚数: {currentPlayerState.discard.length}</p>
               </div>
             )}
           </>
