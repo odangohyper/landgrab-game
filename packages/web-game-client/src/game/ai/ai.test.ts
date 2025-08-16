@@ -12,6 +12,8 @@ describe('AI Functions', () => {
       'ACQUIRE': { templateId: 'ACQUIRE', name: '買収', cost: 2, type: 'ACQUIRE' },
       'DEFEND': { templateId: 'DEFEND', name: '防衛', cost: 0, type: 'DEFEND' },
       'FRAUD': { templateId: 'FRAUD', name: '詐欺', cost: 1, type: 'FRAUD' },
+      'BRIBE': { templateId: 'BRIBE', name: '賄賂', cost: 5, type: 'BRIBE' },
+      'INVEST': { templateId: 'INVEST', name: '投資', cost: 1, type: 'INVEST' },
     };
 
     mockPlayer = {
@@ -118,6 +120,28 @@ describe('AI Functions', () => {
 
       // FRAUD: 相手が買収できないので、FRAUDの重みは基本値のみ
       expect(weights.get('c3')).toBe(1);
+    });
+
+    it('should assign high weight to BRIBE when affordable and opponent has property', () => {
+      mockPlayer.funds = 5;
+      mockOpponent.properties = 1;
+      mockPlayer.hand = [{ id: 'c1', templateId: 'BRIBE' }];
+      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
+      expect(weights.get('c1')).toBe(1 + 8);
+    });
+
+    it('should assign higher weight to INVEST when funds are low', () => {
+      mockPlayer.funds = 2; // Low funds
+      mockPlayer.hand = [{ id: 'c1', templateId: 'INVEST' }];
+      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
+      expect(weights.get('c1')).toBe(1 + 4);
+    });
+
+    it('should assign base weight to INVEST when funds are high', () => {
+      mockPlayer.funds = 5; // High funds
+      mockPlayer.hand = [{ id: 'c1', templateId: 'INVEST' }];
+      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
+      expect(weights.get('c1')).toBe(1);
     });
   });
 

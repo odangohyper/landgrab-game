@@ -52,11 +52,12 @@ export class GameEngine {
         this.state.log.push(`ターン${this.state.turn}　プレイヤー資産：${playerFunds} 対戦相手資産：${opponentFunds}`);
 
     this.state.players.forEach(player => {
-      
-      const cardsToDraw = 3 - player.hand.length;
-      if (cardsToDraw > 0) {
-        this.drawCards(player, cardsToDraw);
-      }
+      // 手札をすべて捨て札に移動
+      player.discard.push(...player.hand);
+      player.hand = [];
+
+      // 新たに3枚のカードを引く
+      this.drawCards(player, 3);
     });
 
     this.state.phase = 'ACTION';
@@ -77,7 +78,7 @@ export class GameEngine {
 
   public static createInitialState(player1Id: string, player2Id: string, cardTemplates: { [key: string]: CardTemplate }): GameState {
     const initialDeck: Card[] = Object.values(cardTemplates)
-      .flatMap(t => Array(3).fill(t.templateId)) // 3 of each of the 3 card types
+      .flatMap(t => Array(2).fill(t.templateId)) // 5 card types, 2 of each
       .map((templateId, i) => ({ id: `card${i}_${templateId}`, templateId }));
     
     const createPlayer = (id: string): PlayerState => ({
@@ -133,9 +134,9 @@ export class GameEngine {
       if (action && action.actionType === 'collect_funds') {
         const player = state.players.find(p => p.playerId === action.playerId);
         if (player) {
-          player.funds += 1; // Increase funds by 1
+          player.funds += 1;
           resolved.push({ playerId: player.playerId, cardTemplateId: 'COLLECT_FUNDS_COMMAND' });
-          const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
+          const clientId = state.players[0].playerId;
           state.log.push(`${player.playerId === clientId ? 'プレイヤー' : '対戦相手'}は「資金集め」コマンドを実行した`);
         }
       }
@@ -144,102 +145,114 @@ export class GameEngine {
     const player1 = state.players.find(p => p.playerId === player1Action?.playerId);
     const player2 = state.players.find(p => p.playerId === player2Action?.playerId);
 
-    
-
     const getCardInfo = (player: PlayerState | undefined, action: Action | null) => {
-        if (!player || !action || action.actionType === 'collect_funds') return { card: undefined, template: undefined };
-        const card = player.hand.find(c => c.id === action.cardId);
-        const template = card ? this.getCardTemplate(card.templateId) : undefined;
-        return { card, template };
+      if (!player || !action || action.actionType === 'collect_funds') return { card: undefined, template: undefined };
+      const card = player.hand.find(c => c.id === action.cardId);
+      const template = card ? this.getCardTemplate(card.templateId) : undefined;
+      return { card, template };
     };
 
     const { card: p1Card, template: p1Template } = getCardInfo(player1, player1Action);
     const { card: p2Card, template: p2Template } = getCardInfo(player2, player2Action);
 
-    // Step 1: Determine what was played, pay costs, and record the play.
     const p1Played = p1Card && p1Template && player1 && player1.funds >= p1Template.cost;
     const p2Played = p2Card && p2Template && player2 && player2.funds >= p2Template.cost;
 
     if (p1Played) {
-        player1.funds -= p1Template!.cost;
-        player1.hand = player1.hand.filter(c => c.id !== p1Card!.id);
-        player1.discard.push(p1Card!);
-        resolved.push({ playerId: player1.playerId, cardTemplateId: p1Template!.templateId });
-        const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
-        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の行動：「${p1Template!.name}」`);
+      player1.funds -= p1Template!.cost;
+      player1.hand = player1.hand.filter(c => c.id !== p1Card!.id);
+      player1.discard.push(p1Card!);
+      resolved.push({ playerId: player1.playerId, cardTemplateId: p1Template!.templateId });
+      state.log.push(`${player1.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${p1Template!.name}」`);
     }
     if (p2Played) {
-        player2.funds -= p2Template!.cost;
-        player2.hand = player2.hand.filter(c => c.id !== p2Card!.id);
-        player2.discard.push(p2Card!);
-        resolved.push({ playerId: player2.playerId, cardTemplateId: p2Template!.templateId });
-        const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
-        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の行動：「${p2Template!.name}」`);
+      player2.funds -= p2Template!.cost;
+      player2.hand = player2.hand.filter(c => c.id !== p2Card!.id);
+      player2.discard.push(p2Card!);
+      resolved.push({ playerId: player2.playerId, cardTemplateId: p2Template!.templateId });
+      state.log.push(`${player2.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${p2Template!.name}」`);
     }
 
-    // Step 2: Resolve conflicts and apply effects based on played cards.
-    const p1EffectiveTemplate = p1Played ? p1Template : undefined;
-    const p2EffectiveTemplate = p2Played ? p2Template : undefined;
-
-    const isP1Acquire = p1EffectiveTemplate?.type === 'ACQUIRE';
-    const isP2Acquire = p2EffectiveTemplate?.type === 'ACQUIRE';
-    const isP1Defend = p1EffectiveTemplate?.type === 'DEFEND';
-    const isP2Defend = p2EffectiveTemplate?.type === 'DEFEND';
-    const isP1Fraud = p1EffectiveTemplate?.type === 'FRAUD';
-    const isP2Fraud = p2EffectiveTemplate?.type === 'FRAUD';
+    const p1Type = p1Played ? p1Template!.type : undefined;
+    const p2Type = p2Played ? p2Template!.type : undefined;
 
     let p1Effect = !!p1Played;
     let p2Effect = !!p2Played;
 
-    const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
+    const p1Name = player1?.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手';
+    const p2Name = player2?.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手';
 
-    if (isP1Acquire && isP2Acquire) {
-        p1Effect = false; p2Effect = false;
-        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の買収は失敗した！`);
-        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の買収は失敗した！`);
-    } else if (isP1Acquire && isP2Defend) {
-        p1Effect = false;
-        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の買収は失敗した！`);
-    } else if (isP1Acquire && isP2Fraud) {
-        p1Effect = false;
-        const opponentOfP2 = state.players.find(p => p.playerId !== player2!.playerId)!;
-        this.applyCardEffect(state, player2!, p2Card!, opponentOfP2); // 詐欺の効果を適用
-        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の買収は詐欺で返り討ちにあった！`);
-    } else if (isP2Acquire && isP1Defend) {
-        p2Effect = false;
-        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の買収は失敗した！`);
-    } else if (isP2Acquire && isP1Fraud) {
-        p2Effect = false;
-        const opponentOfP1 = state.players.find(p => p.playerId !== player1!.playerId)!;
-        this.applyCardEffect(state, player1!, p1Card!, opponentOfP1); // 詐欺の効果を適用
-        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の買収は詐欺で返り討ちにあった！`);
+    if (p1Type === 'BRIBE' && p2Type === 'BRIBE') {
+      p1Effect = false; p2Effect = false;
+      state.log.push('両者の賄賂は互いに打ち消しあった！');
+    } else if (p1Type === 'BRIBE') {
+      if (p2Type === 'DEFEND' || p2Type === 'FRAUD') p2Effect = false;
+    } else if (p2Type === 'BRIBE') {
+      if (p1Type === 'DEFEND' || p1Type === 'FRAUD') p1Effect = false;
+    } else if (p1Type === 'ACQUIRE' && p2Type === 'ACQUIRE') {
+      p1Effect = false; p2Effect = false;
+      state.log.push(`${p1Name}の買収は失敗した！`);
+      state.log.push(`${p2Name}の買収は失敗した！`);
+    } else if (p1Type === 'ACQUIRE' && p2Type === 'DEFEND') {
+      p1Effect = false;
+      state.log.push(`${p1Name}の買収は防がれた！`);
+    } else if (p2Type === 'ACQUIRE' && p1Type === 'DEFEND') {
+      p2Effect = false;
+      state.log.push(`${p2Name}の買収は防がれた！`);
+    } else if (p1Type === 'ACQUIRE' && p2Type === 'FRAUD') {
+      p1Effect = false;
+    } else if (p2Type === 'ACQUIRE' && p1Type === 'FRAUD') {
+      p2Effect = false;
     }
 
-    // Apply standard, non-countered, non-fraud effects
-    if (p1Effect && p1EffectiveTemplate) {
-        if (p1EffectiveTemplate.type === 'ACQUIRE') {
-            const opponentOfP1 = state.players.find(p => p.playerId !== player1!.playerId)!;
-            this.applyCardEffect(state, player1!, p1Card!, opponentOfP1);
-            state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の買収は成功した！`);
-        } else if (p1EffectiveTemplate.type !== 'FRAUD' && p1EffectiveTemplate.type !== 'DEFEND') {
-            // Other non-ACQUIRE, non-FRAUD, non-DEFEND cards
-            const opponentOfP1 = state.players.find(p => p.playerId !== player1!.playerId)!;
-            this.applyCardEffect(state, player1!, p1Card!, opponentOfP1);
-        }
+    if (p1Effect && p1Template) {
+      const opponent = state.players.find(p => p.playerId !== player1!.playerId)!;
+      switch (p1Template.type) {
+        case 'ACQUIRE':
+          applyAcquire(player1!, opponent);
+          state.log.push(`${p1Name}の買収は成功した！`);
+          break;
+        case 'BRIBE':
+          applyAcquire(player1!, opponent);
+          state.log.push(`${p1Name}の賄賂は成功した！`);
+          break;
+        case 'INVEST':
+          player1!.funds += 3;
+          state.log.push(`${p1Name}は投資で3資金を獲得した！`);
+          break;
+        case 'FRAUD':
+          if (p2Type === 'ACQUIRE') {
+            applyFraud(player1!, opponent);
+            state.log.push(`${p2Name}の買収は詐欺で返り討ちにあった！`);
+          }
+          break;
+      }
     }
 
-    if (p2Effect && p2EffectiveTemplate) {
-        if (p2EffectiveTemplate.type === 'ACQUIRE') {
-            const opponentOfP2 = state.players.find(p => p.playerId !== player2!.playerId)!;
-            this.applyCardEffect(state, player2!, p2Card!, opponentOfP2);
-            state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の買収は成功した！`);
-        } else if (p2EffectiveTemplate.type !== 'FRAUD' && p2EffectiveTemplate.type !== 'DEFEND') {
-            // Other non-ACQUIRE, non-FRAUD, non-DEFEND cards
-            const opponentOfP2 = state.players.find(p => p.playerId !== player2!.playerId)!;
-            this.applyCardEffect(state, player2!, p2Card!, opponentOfP2);
-        }
+    if (p2Effect && p2Template) {
+      const opponent = state.players.find(p => p.playerId !== player2!.playerId)!;
+      switch (p2Template.type) {
+        case 'ACQUIRE':
+          applyAcquire(player2!, opponent);
+          state.log.push(`${p2Name}の買収は成功した！`);
+          break;
+        case 'BRIBE':
+          applyAcquire(player2!, opponent);
+          state.log.push(`${p2Name}の賄賂は成功した！`);
+          break;
+        case 'INVEST':
+          player2!.funds += 3;
+          state.log.push(`${p2Name}は投資で3資金を獲得した！`);
+          break;
+        case 'FRAUD':
+          if (p1Type === 'ACQUIRE') {
+            applyFraud(player2!, opponent);
+            state.log.push(`${p1Name}の買収は詐欺で返り討ちにあった！`);
+          }
+          break;
+      }
     }
-    
+
     return resolved;
   }
 

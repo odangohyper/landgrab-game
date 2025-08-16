@@ -60,6 +60,18 @@ export function calculate_weights(
           weight += 5;
         }
         break;
+
+      case 'BRIBE':
+        if (opponentPlayer.properties > 0) {
+          weight += 8; // 強力な効果のため、高い価値を持つ
+        }
+        break;
+
+      case 'INVEST':
+        if (npcPlayer.funds < 3) { // 資金が少ない時に有効
+          weight += 4;
+        }
+        break;
     }
     weights.set(card.id, weight);
   });

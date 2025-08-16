@@ -6,13 +6,15 @@ export interface Card {
   templateId: string;
 }
 
+export type CardType = 'ACQUIRE' | 'DEFEND' | 'FRAUD' | 'BRIBE' | 'INVEST';
+
 export interface CardTemplate {
   templateId: string;
   name: string;
   cost: number;
+  type: CardType;
   description?: string;
-  type: 'ACQUIRE' | 'DEFEND' | 'FRAUD';
-  imageFile?: string; // New property for image file name
+  imageFile?: string;
 }
 
 export interface PlayerState {

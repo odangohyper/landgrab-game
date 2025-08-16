@@ -20,6 +20,8 @@ describe('GameEngine', () => {
     'ACQUIRE': { templateId: 'ACQUIRE', name: '買収', cost: 2, type: 'ACQUIRE' },           // 資産を奪うカード
     'DEFEND': { templateId: 'DEFEND', name: '防衛', cost: 0, type: 'DEFEND' },             // 買収から資産を守るカード
     'FRAUD': { templateId: 'FRAUD', name: '詐欺', cost: 1, type: 'FRAUD' },             // 詐欺を働くカード
+    'BRIBE': { templateId: 'BRIBE', name: '賄賂', cost: 5, type: 'BRIBE' },             // 防御・詐欺を無視して買収するカード
+    'INVEST': { templateId: 'INVEST', name: '投資', cost: 1, type: 'INVEST' },           // 資金を3得るカード
   };
 
   // 各テストケースが実行される前に毎回実行される設定処理です。
@@ -57,14 +59,27 @@ describe('GameEngine', () => {
     expect(player1?.funds).toBe(0);
     // プレイヤー1の初期資産が1であること。
     expect(player1?.properties).toBe(1);
-    // プレイヤー1のデッキが空ではないこと。
-    expect(player1?.deck.length).toBeGreaterThan(0);
+    // プレイヤー1のデッキが10枚であること。
+    expect(player1?.deck.length).toBe(10);
+    // 各カードが2枚ずつあることを確認
+    expect(player1?.deck.filter(c => c.templateId === 'ACQUIRE').length).toBe(2);
+    expect(player1?.deck.filter(c => c.templateId === 'DEFEND').length).toBe(2);
+    expect(player1?.deck.filter(c => c.templateId === 'FRAUD').length).toBe(2);
+    expect(player1?.deck.filter(c => c.templateId === 'BRIBE').length).toBe(2);
+    expect(player1?.deck.filter(c => c.templateId === 'INVEST').length).toBe(2);
 
     // プレイヤー2の状態も同様に検証します。
     expect(player2).toBeDefined();
     expect(player2?.funds).toBe(0);
     expect(player2?.properties).toBe(1);
-    expect(player2?.deck.length).toBeGreaterThan(0);
+    // プレイヤー2のデッキが10枚であること。
+    expect(player2?.deck.length).toBe(10);
+    // 各カードが2枚ずつあることを確認
+    expect(player2?.deck.filter(c => c.templateId === 'ACQUIRE').length).toBe(2);
+    expect(player2?.deck.filter(c => c.templateId === 'DEFEND').length).toBe(2);
+    expect(player2?.deck.filter(c => c.templateId === 'FRAUD').length).toBe(2);
+    expect(player2?.deck.filter(c => c.templateId === 'BRIBE').length).toBe(2);
+    expect(player2?.deck.filter(c => c.templateId === 'INVEST').length).toBe(2);
   });
 
   it('should hydrate player arrays in constructor if they are null/undefined', () => {
@@ -103,21 +118,37 @@ describe('GameEngine', () => {
     expect(state2.lastActions).toEqual([]);
   });
 
-  it('should advance the turn and draw cards', () => {
-    // ターンを進める前のプレイヤー1の状態を取得します。
-    const player1 = engine.getState().players[0];
-    // 手札を空にして、ドロー処理が実行されることを確実にします。
-    player1.hand = []; 
-    // `advanceTurn`メソッドを呼び出し、ターンを進めます。
-    const newState = engine.advanceTurn();
-    // 新しい状態のターン数が1になっていることを検証します。
-    expect(newState.turn).toBe(1);
-    // フェーズが`ACTION`に移行していることを検証します。
-    expect(newState.phase).toBe('ACTION');
-    // 更新されたプレイヤー1の状態を取得します。
-    const updatedPlayer1 = newState.players[0];
-    // ドローフェーズで手札が3枚になっていることを検証します（初期手札枚数の想定）。
+  it('should discard the entire hand and draw 3 new cards when advancing turn', () => {
+    // ターン1: プレイヤーは3枚のカードを引く
+    let stateAfterTurn1 = engine.advanceTurn();
+    let player1 = stateAfterTurn1.players[0];
+    expect(player1.hand.length).toBe(3);
+
+    // ターン1のアクションフェーズをシミュレート: プレイヤーは1枚カードを使用
+    const cardUsed = player1.hand.pop()!;
+    player1.discard.push(cardUsed);
+    expect(player1.hand.length).toBe(2); // ターン終了時、手札は2枚
+    const remainingHandIds = player1.hand.map(c => c.id);
+
+    // この変更された状態で新しいエンジンを作成して、次のターンに進める
+    const engineForTurn2 = new GameEngine(stateAfterTurn1, mockCardTemplates);
+    const stateAfterTurn2 = engineForTurn2.advanceTurn();
+    const updatedPlayer1 = stateAfterTurn2.players[0];
+
+    // ターン2: 新しい手札は3枚になっているか
     expect(updatedPlayer1.hand.length).toBe(3);
+
+    // ターン1の残りの手札(2枚)が捨て札に移動しているか
+    remainingHandIds.forEach(cardId => {
+      expect(updatedPlayer1.discard).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: cardId })
+      ]));
+    });
+
+    // ターン2の新しい手札に、ターン1のカードが含まれていないか
+    updatedPlayer1.hand.forEach(card => {
+      expect(remainingHandIds).not.toContain(card.id);
+    });
   });
 
   it('should reshuffle discard pile into deck when deck is empty', () => {
@@ -290,7 +321,7 @@ describe('GameEngine', () => {
 
       expect(newState.players[0].properties).toBe(2); // 資産が1増える
       expect(newState.players[1].properties).toBe(0); // 相手の資産が1減る
-      expect(newState.log).toContain('プレイヤーの行動：「買収」');
+      expect(newState.log).toContain('プレイヤーの行動「買収」');
       expect(newState.log).toContain('プレイヤーの買収は成功した！');
     });
 
@@ -306,7 +337,7 @@ describe('GameEngine', () => {
       expect(newState.players[0].properties).toBe(2); // 資産が1増える
       expect(newState.players[1].properties).toBe(0); // 相手の資産が1減る
       expect(newState.players[1].funds).toBe(1); // 相手の資金が増える
-      expect(newState.log).toContain('プレイヤーの行動：「買収」');
+      expect(newState.log).toContain('プレイヤーの行動「買収」');
       expect(newState.log).toContain('プレイヤーの買収は成功した！');
       expect(newState.log).toContain('対戦相手は「資金集め」コマンドを実行した');
     });
@@ -321,7 +352,7 @@ describe('GameEngine', () => {
 
       expect(newState.players[1].properties).toBe(2); // 資産が1増える
       expect(newState.players[0].properties).toBe(0); // 相手の資産が1減る
-      expect(newState.log).toContain('対戦相手の行動：「買収」');
+      expect(newState.log).toContain('対戦相手の行動「買収」');
       expect(newState.log).toContain('対戦相手の買収は成功した！');
     });
 
@@ -337,7 +368,7 @@ describe('GameEngine', () => {
       expect(newState.players[1].properties).toBe(2); // 資産が1増える
       expect(newState.players[0].properties).toBe(0); // 相手の資産が1減る
       expect(newState.players[0].funds).toBe(1); // 相手の資金が増える
-      expect(newState.log).toContain('対戦相手の行動：「買収」');
+      expect(newState.log).toContain('対戦相手の行動「買収」');
       expect(newState.log).toContain('対戦相手の買収は成功した！');
       expect(newState.log).toContain('プレイヤーは「資金集め」コマンドを実行した');
     });
@@ -351,7 +382,7 @@ describe('GameEngine', () => {
       const newState = testEngine.applyAction(p1Action, null);
 
       expect(newState.players[0].properties).toBe(1); // 資産は変化しない
-      expect(newState.log).toContain('プレイヤーの行動：「防衛」');
+      expect(newState.log).toContain('プレイヤーの行動「防衛」');
     });
 
     it('should resolve FRAUD when opponent plays nothing (fraud fails)', () => {
@@ -363,7 +394,7 @@ describe('GameEngine', () => {
       const newState = testEngine.applyAction(p1Action, null);
 
       expect(newState.players[0].properties).toBe(1); // 資産は変化しない
-      expect(newState.log).toContain('プレイヤーの行動：「詐欺」');
+      expect(newState.log).toContain('プレイヤーの行動「詐欺」');
       // 詐欺が成功しないので、詐欺成功のログは含まれない
       expect(newState.log).not.toContain('プレイヤーの買収は詐欺で返り討ちにあった！');
     });
@@ -397,6 +428,68 @@ describe('GameEngine', () => {
         // プレイヤー2の資金と資産が変化しないことを検証します。
         expect(newPlayer2.funds).toBe(0);
         expect(newPlayer2.properties).toBe(1);
+    });
+
+    it('should resolve INVEST successfully, increasing funds by 3', () => {
+      player1.hand = [{ id: 'p1card', templateId: 'INVEST' }];
+      player1.funds = 1; // Cost is 1
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const newState = testEngine.applyAction(p1Action, null);
+
+      expect(newState.players[0].funds).toBe(1 - 1 + 3); // Initial - cost + gain
+      expect(newState.log).toContain('プレイヤーは投資で3資金を獲得した！');
+    });
+
+    it('should resolve BRIBE successfully against DEFEND', () => {
+      player1.hand = [{ id: 'p1card', templateId: 'BRIBE' }];
+      player1.funds = 5;
+      player2.hand = [{ id: 'p2card', templateId: 'DEFEND' }];
+      player2.funds = 0;
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'play_card', cardId: 'p2card' };
+      const newState = testEngine.applyAction(p1Action, p2Action);
+
+      expect(newState.players[0].properties).toBe(2); // Bribe succeeds
+      expect(newState.players[1].properties).toBe(0);
+      expect(newState.log).toContain('プレイヤーの賄賂は成功した！');
+      expect(newState.log).not.toContain('対戦相手の買収は防がれた！'); // Should not contain this log
+    });
+
+    it('should resolve BRIBE successfully against FRAUD', () => {
+      player1.hand = [{ id: 'p1card', templateId: 'BRIBE' }];
+      player1.funds = 5;
+      player2.hand = [{ id: 'p2card', templateId: 'FRAUD' }];
+      player2.funds = 1;
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'play_card', cardId: 'p2card' };
+      const newState = testEngine.applyAction(p1Action, p2Action);
+
+      expect(newState.players[0].properties).toBe(2); // Bribe succeeds
+      expect(newState.players[1].properties).toBe(0);
+      expect(newState.log).toContain('プレイヤーの賄賂は成功した！');
+      expect(newState.log).not.toContain('プレイヤーの買収は詐欺で返り討ちにあった！');
+    });
+
+    it('should nullify both actions in a BRIBE vs BRIBE conflict', () => {
+      player1.hand = [{ id: 'p1card', templateId: 'BRIBE' }];
+      player1.funds = 5;
+      player2.hand = [{ id: 'p2card', templateId: 'BRIBE' }];
+      player2.funds = 5;
+
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'play_card', cardId: 'p2card' };
+      const newState = testEngine.applyAction(p1Action, p2Action);
+
+      expect(newState.players[0].properties).toBe(1); // No change
+      expect(newState.players[1].properties).toBe(1);
+      expect(newState.log).toContain('両者の賄賂は互いに打ち消しあった！');
     });
   });
 

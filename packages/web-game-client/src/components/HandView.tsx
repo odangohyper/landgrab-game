@@ -71,8 +71,8 @@ const HandView: React.FC<HandViewProps> = ({ hand, onCardSelect, playableCardIds
             >
               {/* カード画像が存在する場合のみ表示します */}
               {imageUrl && <img src={imageUrl} alt={template?.name} className="card-image" />}
-              {/* カードの名前を表示します。テンプレートが見つからない場合はテンプレートIDを表示します。 */}
-              <p className="card-name">{template?.name || card.templateId}</p>
+              {/* カードの名前とコストを連結して表示します。 */}
+              <p className="card-name">{template ? `${template.name}：コスト${template.cost}` : card.templateId}</p>
             </div>
           );
         })
