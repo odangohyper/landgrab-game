@@ -139,8 +139,8 @@ describe('GameEngine', () => {
       // このテスト用のGameEngineインスタンスを作成します。
       const testEngine = new GameEngine(testState, mockCardTemplates);
       // プレイヤー1と2のアクションを定義します。
-      const p1Action: Action = { playerId: 'player1-id', cardId: 'p1card' };
-      const p2Action: Action = { playerId: 'player2-id', cardId: 'p2card' };
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'play_card', cardId: 'p2card' };
       // 両プレイヤーのアクションを適用します。
       const newState = testEngine.applyAction(p1Action, p2Action);
 
@@ -163,8 +163,8 @@ describe('GameEngine', () => {
       // このテスト用のGameEngineインスタンスを作成します。
       const testEngine = new GameEngine(testState, mockCardTemplates);
       // アクションを定義します。
-      const p1Action: Action = { playerId: 'player1-id', cardId: 'p1card' };
-      const p2Action: Action = { playerId: 'player2-id', cardId: 'p2card' };
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'play_card', cardId: 'p2card' };
       // アクションを適用します。
       const newState = testEngine.applyAction(p1Action, p2Action);
 
@@ -187,8 +187,8 @@ describe('GameEngine', () => {
       // このテスト用のGameEngineインスタンスを作成します。
       const testEngine = new GameEngine(testState, mockCardTemplates);
       // アクションを定義します。
-      const p1Action: Action = { playerId: 'player1-id', cardId: 'p1card' };
-      const p2Action: Action = { playerId: 'player2-id', cardId: 'p2card' };
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'play_card', cardId: 'p2card' };
       // アクションを適用します。
       const newState = testEngine.applyAction(p1Action, p2Action);
 
@@ -280,7 +280,7 @@ describe('GameEngine', () => {
     // このテスト用のGameEngineインスタンスを作成します。
     const testEngine = new GameEngine(testState, mockCardTemplates);
     // プレイヤー1が「買収」アクションを実行し、プレイヤー2はアクションなしとします。
-    const p1Action: Action = { playerId: 'player1-id', cardId: 'p1card' };
+    const p1Action: Action = { playerId: 'player1-id', actionType: 'play_card', cardId: 'p1card' };
     const newState = testEngine.applyAction(p1Action, null); // プレイヤー2は何もプレイしない
 
     // プレイヤー2の資産が0になり、ゲームのフェーズが`GAME_OVER`になっていることを検証します。
