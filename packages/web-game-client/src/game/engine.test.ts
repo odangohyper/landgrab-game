@@ -67,6 +67,24 @@ describe('GameEngine', () => {
     expect(player2?.deck.length).toBeGreaterThan(0);
   });
 
+  it('should hydrate player arrays in constructor if they are null/undefined', () => {
+    const stateWithNullArrays: GameState = {
+      ...initialState,
+      players: [
+        { ...initialState.players[0], hand: null as any, deck: null as any, discard: null as any },
+        { ...initialState.players[1], hand: undefined as any, deck: undefined as any, discard: undefined as any },
+      ],
+    };
+    const hydratedEngine = new GameEngine(stateWithNullArrays, mockCardTemplates);
+    const state = hydratedEngine.getState();
+    expect(state.players[0].hand).toEqual([]);
+    expect(state.players[0].deck).toEqual([]);
+    expect(state.players[0].discard).toEqual([]);
+    expect(state.players[1].hand).toEqual([]);
+    expect(state.players[1].deck).toEqual([]);
+    expect(state.players[1].discard).toEqual([]);
+  });
+
   it('should advance the turn and draw cards', () => {
     // ターンを進める前のプレイヤー1の状態を取得します。
     const player1 = engine.getState().players[0];
@@ -126,8 +144,20 @@ describe('GameEngine', () => {
       player1 = testState.players.find(p => p.playerId === 'player1-id')!;
       player2 = testState.players.find(p => p.playerId === 'player2-id')!;
     });
-
     
+    it('should not apply card effect if card template is not found', () => {
+      const player1 = testState.players.find(p => p.playerId === 'player1-id')!;
+      const player2 = testState.players.find(p => p.playerId === 'player2-id')!;
+      const nonExistentCard: Card = { id: 'non-existent', templateId: 'NON_EXISTENT_CARD' };
+      // Directly call applyCardEffect with a non-existent template
+      // This is a private method, so we cast to any for testing purposes 
+      (engine as any).applyCardEffect(testState, player1, nonExistentCard, player2);
+      // Assert that no changes occurred
+      expect(player1.funds).toBe(0);
+      expect(player1.properties).toBe(1);
+      expect(player2.funds).toBe(0);
+      expect(player2.properties).toBe(1);
+    });
 
     it('should nullify both actions in an ACQUIRE vs ACQUIRE conflict', () => {
       // プレイヤー1と2の両方に「買収」カードを持たせ、資金を2に設定します。

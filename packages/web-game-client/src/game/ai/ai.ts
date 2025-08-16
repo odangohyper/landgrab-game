@@ -103,8 +103,6 @@ export function choose_card(
   const npcPlayer = gameState.players.find(p => p.playerId === 'npc-player-id');
   if (!npcPlayer) return null;
 
-  console.log('ai.ts: choose_card: npcPlayer.playerId:', npcPlayer.playerId);
-
   const weights = calculate_weights(gameState, hand, cardTemplates);
 
   if (hand.length === 0 && (weights.get('COLLECT_FUNDS_COMMAND') || 0) === 0) {
@@ -144,10 +142,8 @@ export function choose_card(
     const weight = weights.get(choice.id) || 0;
     if (randomValue < weight) {
       if (choice.type === 'card') {
-        console.log('ai.ts: choose_card: Returning card action for playerId:', npcPlayer.playerId);
         return { playerId: npcPlayer.playerId, actionType: 'play_card', cardId: choice.id };
       } else {
-        console.log('ai.ts: choose_card: Returning command action for playerId:', npcPlayer.playerId);
         return { playerId: npcPlayer.playerId, actionType: 'collect_funds' };
       }
     }
