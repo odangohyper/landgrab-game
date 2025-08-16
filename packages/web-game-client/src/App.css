@@ -249,11 +249,7 @@ body {
 
 .card-stack-image {
   position: absolute;
-  top: 60%;
-  left: 50%;
   transform: translate(-50%, -50%);
-  bottom: 15px; /* コンテナの下端からの位置を調整 */
-  right: 15px; /* コンテナの右端からの位置を調整 */
   width: 60px; /* カード画像の幅 */
   height: 120px; /* カード画像の高さ */
   border: 1px solid #555; /* 軽い枠線 */
