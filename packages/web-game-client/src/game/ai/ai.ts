@@ -14,75 +14,73 @@ export function calculate_weights(
   cardTemplates: { [templateId: string]: CardTemplate }
 ): Map<string, number> {
   const weights = new Map<string, number>();
-  const npcPlayer = gameState.players.find(p => p.playerId === hand[0]?.playerId); // Assuming all cards in hand belong to the same player
-  if (!npcPlayer) return weights; // Should not happen
+  const npcPlayer = gameState.players.find(p => p.playerId === 'npc-player-id');
+  if (!npcPlayer) return weights;
 
   const opponentPlayer = gameState.players.find(p => p.playerId !== npcPlayer.playerId);
-  if (!opponentPlayer) return weights; // Should not happen in a 2-player game
+  if (!opponentPlayer) return weights;
 
   hand.forEach(card => {
     const template = cardTemplates[card.templateId];
     if (!template) {
-      weights.set(card.id, 0); // Unknown card, assign 0 weight
+      weights.set(card.id, 0);
       return;
     }
 
-    let weight = 1; // Default weight
+    let weight = 1;
+    let opponentCanAcquire = opponentPlayer.funds >= (cardTemplates['ACQUIRE']?.cost || 2); // Declare and initialize here
 
-    // コストが足りないカードはプレイできないため、重みを非常に低くする
     if (npcPlayer.funds < template.cost) {
-      weights.set(card.id, 0.01); // ほぼ選ばれないようにするが、完全に0ではない
+      weights.set(card.id, 0.01);
       return;
     }
 
     switch (template.type) {
-      case 'GAIN_FUNDS':
-        // 資金が少ない場合は優先度を上げる
-        if (npcPlayer.funds < 2) {
-          weight += 5;
-        } else if (npcPlayer.funds < 4) {
-          weight += 3;
-        }
-        // 買収に必要な資金がない場合も優先度を上げる
-        const acquireCost = cardTemplates['ACQUIRE']?.cost || 2; // 仮の買収コスト
-        if (npcPlayer.funds < acquireCost) {
-          weight += 2;
-        }
-        break;
-
       case 'ACQUIRE':
-        // 相手の不動産が多いほど優先度を上げる
         if (opponentPlayer.properties > 1) {
           weight += 4;
         } else if (opponentPlayer.properties === 1) {
           weight += 2;
         }
-        // 自分の資金が十分にある場合のみ考慮
         if (npcPlayer.funds >= template.cost) {
           weight += 3;
         }
         break;
 
       case 'DEFEND':
-        // 相手の資金が多い、かつ不動産を狙われそうな場合（相手がACQUIREをプレイしそう）に優先度を上げる
-        // 相手がACQUIREをプレイする可能性を推測する簡易ロジック
-        const opponentCanAcquire = opponentPlayer.funds >= (cardTemplates['ACQUIRE']?.cost || 2);
+        opponentCanAcquire = opponentPlayer.funds >= (cardTemplates['ACQUIRE']?.cost || 2);
         if (opponentCanAcquire && npcPlayer.properties > 0) {
           weight += 4;
         }
         break;
 
       case 'FRAUD':
-        // 相手がACQUIREをプレイしそうな場合に優先度を上げる
-        // DEFENDよりも攻撃的な選択肢
         const fraudCost = template.cost;
         if (npcPlayer.funds >= fraudCost && opponentPlayer.properties > 0 && opponentCanAcquire) {
-          weight += 5; // 詐欺が成功すると強力
+          weight += 5;
         }
         break;
     }
     weights.set(card.id, weight);
   });
+
+  let collectFundsWeight = 1;
+  if (npcPlayer.funds < 1) {
+    collectFundsWeight += 10;
+  } else if (npcPlayer.funds < 2) {
+    collectFundsWeight += 5;
+  }
+
+  const canPlayAnyCard = hand.some(card => {
+    const template = cardTemplates[card.templateId];
+    return template && npcPlayer.funds >= template.cost;
+  });
+
+  if (!canPlayAnyCard) {
+    collectFundsWeight += 7;
+  }
+
+  weights.set('COLLECT_FUNDS_COMMAND', collectFundsWeight);
 
   return weights;
 }
@@ -101,16 +99,18 @@ export function choose_card(
   hand: Card[],
   seed: number,
   cardTemplates: { [templateId: string]: CardTemplate }
-): Card | null {
-  if (hand.length === 0) {
+): Action | null {
+  const npcPlayer = gameState.players.find(p => p.playerId === 'npc-player-id');
+  if (!npcPlayer) return null;
+
+  console.log('ai.ts: choose_card: npcPlayer.playerId:', npcPlayer.playerId);
+
+  const weights = calculate_weights(gameState, hand, cardTemplates);
+
+  if (hand.length === 0 && (weights.get('COLLECT_FUNDS_COMMAND') || 0) === 0) {
     return null;
   }
 
-  // calculate_weightsにcardTemplatesを渡す
-  const weights = calculate_weights(gameState, hand, cardTemplates);
-
-  // シード値を使った乱数生成 (簡易版)
-  // 実際にはより堅牢なPRNGライブラリを使用する
   let s = seed;
   const random = () => {
     s = (s * 9301 + 49297) % 233280;
@@ -118,25 +118,41 @@ export function choose_card(
   };
 
   let totalWeight = 0;
-  for (const weight of weights.values()) {
-    totalWeight += weight;
+  const choices: { id: string; type: 'card' | 'command' }[] = [];
+
+  hand.forEach(card => {
+    const weight = weights.get(card.id) || 0;
+    if (weight > 0) {
+      totalWeight += weight;
+      choices.push({ id: card.id, type: 'card' });
+    }
+  });
+
+  const collectFundsWeight = weights.get('COLLECT_FUNDS_COMMAND') || 0;
+  if (collectFundsWeight > 0) {
+    totalWeight += collectFundsWeight;
+    choices.push({ id: 'COLLECT_FUNDS_COMMAND', type: 'command' });
   }
 
   if (totalWeight === 0) {
-    // 全てのカードの重みが0の場合、ランダムに選択するか、何もプレイしない選択肢も考慮する
-    // 現状はランダムに選択
-    return hand[Math.floor(random() * hand.length)];
+    return null;
   }
 
   let randomValue = random() * totalWeight;
-  for (const card of hand) {
-    const weight = weights.get(card.id) || 0;
+
+  for (const choice of choices) {
+    const weight = weights.get(choice.id) || 0;
     if (randomValue < weight) {
-      return card;
+      if (choice.type === 'card') {
+        console.log('ai.ts: choose_card: Returning card action for playerId:', npcPlayer.playerId);
+        return { playerId: npcPlayer.playerId, actionType: 'play_card', cardId: choice.id };
+      } else {
+        console.log('ai.ts: choose_card: Returning command action for playerId:', npcPlayer.playerId);
+        return { playerId: npcPlayer.playerId, actionType: 'collect_funds' };
+      }
     }
     randomValue -= weight;
   }
 
-  // フォールバック (通常は到達しないはず)
-  return hand[Math.floor(random() * hand.length)];
+  return null;
 }

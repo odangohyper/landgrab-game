@@ -3,22 +3,23 @@
 // Reactコンポーネントを定義するためにReactをインポートします。
 import React from 'react';
 // ゲームで使用するカード（Card）とカードのテンプレート（CardTemplate）の型定義をインポートします。
-import { Card, CardTemplate } from '../types';
+import { Card, CardTemplate, Action } from '../types';
 
 // HandViewコンポーネントが受け取るProps（プロパティ）のインターフェースを定義します。
 interface HandViewProps {
   hand: Card[]; // 現在プレイヤーの手札にあるカードの配列
-  onCardSelect: (cardId: string) => void; // カードが選択されたときに呼び出されるコールバック関数
+  onCardSelect: (action: Action | null) => void; // カードが選択されたときに呼び出されるコールバック関数
   playableCardIds: string[]; // 現在プレイ可能なカードのIDの配列
   cardTemplates: { [templateId: string]: CardTemplate }; // カードテンプレートIDをキーとするカードテンプレートのマップ
   selectedCardId: string | null; // 現在選択されているカードのID（選択されていない場合はnull）
+  playerId: string; // Add playerId
 }
 
 /**
  * HandViewコンポーネントは、プレイヤーの手札を表示し、カードの選択を可能にします。
  * プレイ可能なカードと選択中のカードを視覚的に区別します。
  */
-const HandView: React.FC<HandViewProps> = ({ hand, onCardSelect, playableCardIds, cardTemplates, selectedCardId }) => {
+const HandView: React.FC<HandViewProps> = ({ hand, onCardSelect, playableCardIds, cardTemplates, selectedCardId, playerId }) => {
   // 手札がnullまたはundefinedの場合に備えて、空の配列をデフォルト値として設定します。
   const currentHand = hand || [];
 
@@ -61,10 +62,10 @@ const HandView: React.FC<HandViewProps> = ({ hand, onCardSelect, playableCardIds
               onClick={() => {
                 if (isSelected) {
                   // If already selected, deselect it
-                  onCardSelect(null); // Assuming null deselects
+                  onCardSelect(null); // Deselects
                 } else if (isPlayable) {
                   // Otherwise, if playable, select it
-                  onCardSelect(card.id);
+                  onCardSelect({ playerId: playerId, actionType: 'play_card', cardId: card.id });
                 }
               }}
             >

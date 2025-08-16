@@ -11,7 +11,7 @@ export interface CardTemplate {
   name: string;
   cost: number;
   description?: string;
-  type: 'GAIN_FUNDS' | 'ACQUIRE' | 'DEFEND' | 'FRAUD';
+  type: 'ACQUIRE' | 'DEFEND' | 'FRAUD';
   imageFile?: string; // New property for image file name
 }
 
@@ -35,7 +35,8 @@ export interface GameState {
 
 export interface Action {
   playerId: string;
-  cardId: string; // The ID of the card played
+  actionType: 'play_card' | 'collect_funds'; // アクションの種類を明示
+  cardId?: string; // 'play_card' の場合のみ使用
 }
 
 export interface ResolvedAction {

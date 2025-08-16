@@ -17,6 +17,8 @@ export class MainGameScene extends Phaser.Scene {
   preload() {
     // Preload card backs or other shared assets
     this.load.image('card_back', 'images/cards/card_back.jpg');
+    // Explicitly preload GAIN_FUNDS image for the command
+    this.load.image('GAIN_FUNDS', 'images/cards/GAIN_FUNDS.jpg');
   }
 
   create() {
@@ -54,10 +56,11 @@ export class MainGameScene extends Phaser.Scene {
     console.log('displayTurnActions: Triggered with actions:', currentActions);
     const clientId: string | undefined = this.registry.get('clientId');
     if (!clientId) {
-        console.log('displayTurnActions: clientId not found.');
-        console.log('--- displayTurnActions END (No clientId) ---');
-        return;
-    }
+            console.log('displayTurnActions: clientId not found.');
+            console.log('--- displayTurnActions END (No clientId) ---');
+            return;
+        }
+        console.log('MainGameScene: Using clientId:', clientId); // Add this log
 
     if (!currentActions || currentActions.length === 0) {
         console.log('handleActionsResolved: currentActions is null or empty, cannot display cards.');
@@ -114,6 +117,7 @@ export class MainGameScene extends Phaser.Scene {
 
   private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent'): Phaser.GameObjects.Container {
     console.log(`Displaying card ${templateId} for ${playerType}`);
+    const actualTemplateId = templateId === 'COLLECT_FUNDS_COMMAND' ? 'GAIN_FUNDS' : templateId; // Use GAIN_FUNDS image for command
     const { width, height } = this.scale;
 
     const targetX = playerType === 'player' ? width / 2 + 120 : width / 2 - 120; // Swapped positions
@@ -153,8 +157,9 @@ export class MainGameScene extends Phaser.Scene {
           ease: 'Linear',
           onComplete: () => {
             const flipCard = () => {
-              cardImage.setTexture(templateId);
-              cardImage.setDisplaySize(cardWidth, cardHeight); 
+              
+              cardImage.setTexture(actualTemplateId);
+              cardImage.setDisplaySize(cardWidth, cardHeight);
               this.tweens.add({
                 targets: cardContainer,
                 scaleX: 1,

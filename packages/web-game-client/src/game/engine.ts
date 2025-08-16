@@ -1,7 +1,6 @@
 // packages/web-game-client/src/game/engine.ts
 
 import { GameState, PlayerState, Action, Card, CardTemplate, ResolvedAction } from '../types';
-import { applyGainFunds } from './cards/gain_funds';
 import { applyAcquire } from './cards/acquire';
 import { applyDefend } from './cards/defend';
 import { applyFraud } from './cards/fraud';
@@ -76,12 +75,12 @@ export class GameEngine {
 
   public static createInitialState(player1Id: string, player2Id: string, cardTemplates: { [key: string]: CardTemplate }): GameState {
     const initialDeck: Card[] = Object.values(cardTemplates)
-      .flatMap(t => Array(t.name === '資金集め' ? 4 : 2).fill(t.templateId)) // Example distribution
+      .flatMap(t => Array(3).fill(t.templateId)) // 3 of each of the 3 card types
       .map((templateId, i) => ({ id: `card${i}_${templateId}`, templateId }));
     
     const createPlayer = (id: string): PlayerState => ({
       playerId: id,
-      funds: 2,
+      funds: 0,
       properties: 1,
       hand: [],
       deck: [...initialDeck].sort(() => Math.random() - 0.5),
@@ -117,7 +116,6 @@ export class GameEngine {
     if (!cardTemplate) return;
 
     switch (cardTemplate.type) {
-      case 'GAIN_FUNDS': applyGainFunds(player); break;
       case 'ACQUIRE': applyAcquire(player, opponent); break;
       case 'DEFEND': applyDefend(player); break;
       case 'FRAUD': applyFraud(player, opponent); break;
@@ -128,11 +126,26 @@ export class GameEngine {
     state.phase = 'RESOLUTION';
     const resolved: ResolvedAction[] = [];
 
+    // Handle collect_funds actions first
+    [player1Action, player2Action].forEach(action => {
+      if (action && action.actionType === 'collect_funds') {
+        const player = state.players.find(p => p.playerId === action.playerId);
+        if (player) {
+          player.funds += 1; // Increase funds by 1
+          resolved.push({ playerId: player.playerId, cardTemplateId: 'COLLECT_FUNDS_COMMAND' });
+          const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
+          state.log.push(`${player.playerId === clientId ? 'プレイヤー' : '対戦相手'}は「資金集め」コマンドを実行した`);
+        }
+      }
+    });
+
     const player1 = state.players.find(p => p.playerId === player1Action?.playerId);
     const player2 = state.players.find(p => p.playerId === player2Action?.playerId);
 
+    
+
     const getCardInfo = (player: PlayerState | undefined, action: Action | null) => {
-        if (!player || !action) return { card: undefined, template: undefined };
+        if (!player || !action || action.actionType === 'collect_funds') return { card: undefined, template: undefined };
         const card = player.hand.find(c => c.id === action.cardId);
         const template = card ? this.getCardTemplate(card.templateId) : undefined;
         return { card, template };
@@ -150,14 +163,16 @@ export class GameEngine {
         player1.hand = player1.hand.filter(c => c.id !== p1Card!.id);
         player1.discard.push(p1Card!);
         resolved.push({ playerId: player1.playerId, cardTemplateId: p1Template!.templateId });
-        state.log.push(`プレイヤーは「${p1Template!.name}」をプレイした`);
+        const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
+        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}は「${p1Template!.name}」をプレイした`);
     }
     if (p2Played) {
         player2.funds -= p2Template!.cost;
         player2.hand = player2.hand.filter(c => c.id !== p2Card!.id);
         player2.discard.push(p2Card!);
         resolved.push({ playerId: player2.playerId, cardTemplateId: p2Template!.templateId });
-        state.log.push(`対戦相手は「${p2Template!.name}」をプレイした`);
+        const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
+        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}は「${p2Template!.name}」をプレイした`);
     }
 
     // Step 2: Resolve conflicts and apply effects based on played cards.

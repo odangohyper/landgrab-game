@@ -17,7 +17,6 @@ describe('GameEngine', () => {
   // テストで使用するモック（模擬）のカードテンプレートです。
   // 実際のゲームロジックをテストするために、必要なカードを定義します。
   const mockCardTemplates: { [key: string]: CardTemplate } = {
-    'GAIN_FUNDS': { templateId: 'GAIN_FUNDS', name: '資金集め', cost: 0, type: 'GAIN_FUNDS' }, // 資金を獲得するカード
     'ACQUIRE': { templateId: 'ACQUIRE', name: '買収', cost: 2, type: 'ACQUIRE' },           // 資産を奪うカード
     'DEFEND': { templateId: 'DEFEND', name: '防衛', cost: 0, type: 'DEFEND' },             // 買収から資産を守るカード
     'FRAUD': { templateId: 'FRAUD', name: '詐欺', cost: 1, type: 'FRAUD' },             // 詐欺を働くカード
@@ -55,7 +54,7 @@ describe('GameEngine', () => {
     // プレイヤー1が存在すること。
     expect(player1).toBeDefined();
     // プレイヤー1の初期資金が2であること。
-    expect(player1?.funds).toBe(2);
+    expect(player1?.funds).toBe(0);
     // プレイヤー1の初期資産が1であること。
     expect(player1?.properties).toBe(1);
     // プレイヤー1のデッキが空ではないこと。
@@ -63,7 +62,7 @@ describe('GameEngine', () => {
 
     // プレイヤー2の状態も同様に検証します。
     expect(player2).toBeDefined();
-    expect(player2?.funds).toBe(2);
+    expect(player2?.funds).toBe(0);
     expect(player2?.properties).toBe(1);
     expect(player2?.deck.length).toBeGreaterThan(0);
   });
@@ -128,38 +127,7 @@ describe('GameEngine', () => {
       player2 = testState.players.find(p => p.playerId === 'player2-id')!;
     });
 
-    it('should resolve ACQUIRE vs GAIN_FUNDS correctly', () => {
-      // プレイヤー1の手札に「買収」カードを設定し、資金を3に設定します。
-      player1.hand = [{ id: 'p1card', templateId: 'ACQUIRE' }];
-      player1.funds = 3;
-      // プレイヤー2の手札に「資金集め」カードを設定し、資金を1に設定します。
-      player2.hand = [{ id: 'p2card', templateId: 'GAIN_FUNDS' }];
-      player2.funds = 1;
-
-      // このテスト用のGameEngineインスタンスを作成します。
-      const testEngine = new GameEngine(testState, mockCardTemplates);
-      // プレイヤー1と2のアクションを定義します。
-      const p1Action: Action = { playerId: 'player1-id', cardId: 'p1card' };
-      const p2Action: Action = { playerId: 'player2-id', cardId: 'p2card' };
-      // 両プレイヤーのアクションを適用し、新しいゲーム状態を取得します。
-      const newState = testEngine.applyAction(p1Action, p2Action);
-
-      // 更新されたプレイヤー1と2の状態を取得します。
-      const newPlayer1 = newState.players[0];
-      const newPlayer2 = newState.players[1];
-
-      // プレイヤー1の資金が3から「買収」コスト2を引いて1になっていることを検証します。
-      expect(newPlayer1.funds).toBe(1); // 3 - 2 = 1
-      // プレイヤー1の資産が1から「買収」により1増えて2になっていることを検証します。
-      expect(newPlayer1.properties).toBe(2);
-      // プレイヤー2の資金が1から「資金集め」により2増えて3になっていることを検証します。
-      expect(newPlayer2.funds).toBe(3); // 1 + 2 = 3
-      // プレイヤー2の資産が1から「買収」により1減って0になっていることを検証します。
-      expect(newPlayer2.properties).toBe(0);
-      // ゲームログに両プレイヤーの行動が記録されていることを検証します。
-      expect(newState.log).toContain('プレイヤーは「買収」をプレイした');
-      expect(newState.log).toContain('対戦相手は「資金集め」をプレイした');
-    });
+    
 
     it('should nullify both actions in an ACQUIRE vs ACQUIRE conflict', () => {
       // プレイヤー1と2の両方に「買収」カードを持たせ、資金を2に設定します。
@@ -233,19 +201,50 @@ describe('GameEngine', () => {
       expect(newPlayer2.properties).toBe(2); // 詐欺により資産を得る
     });
 
-    it('should not allow a player to play a card they cannot afford', () => {
-        // プレイヤー1の手札に「買収」カードを設定しますが、資金は足りない1に設定します（コストは2）。
+    it('should resolve COLLECT_FUNDS command correctly', () => {
+      // プレイヤー1の資金を0に設定します。
+      player1.funds = 0;
+      // プレイヤー2の資金を0に設定します。
+      player2.funds = 0;
+
+      // このテスト用のGameEngineインスタンスを作成します。
+      const testEngine = new GameEngine(testState, mockCardTemplates);
+      // プレイヤー1は「資金集め」コマンドを実行し、プレイヤー2は何もプレイしないとします。
+      const p1Action: Action = { playerId: 'player1-id', actionType: 'collect_funds' };
+      const p2Action: Action = { playerId: 'player2-id', actionType: 'collect_funds' }; // NPC also collects funds
+      // アクションを適用し、新しいゲーム状態を取得します。
+      const newState = testEngine.applyAction(p1Action, p2Action);
+
+      // 更新されたプレイヤー1と2の状態を取得します。
+      const newPlayer1 = newState.players[0];
+      const newPlayer2 = newState.players[1];
+
+      // プレイヤー1の資金が0から「資金集め」により1増えて1になっていることを検証します。
+      expect(newPlayer1.funds).toBe(1); // 0 + 1 = 1
+      // プレイヤー1の資産が変化しないことを検証します。
+      expect(newPlayer1.properties).toBe(1);
+      // プレイヤー2の資金が0から「資金集め」により1増えて1になっていることを検証します。
+      expect(newPlayer2.funds).toBe(1); // 0 + 1 = 1
+      // プレイヤー2の資産が変化しないことを検証します。
+      expect(newPlayer2.properties).toBe(1);
+      // ゲームログに両プレイヤーの「資金集め」が記録されていることを検証します。
+      expect(newState.log).toContain('プレイヤーは「資金集め」コマンドを実行した');
+      expect(newState.log).toContain('対戦相手は「資金集め」コマンドを実行した');
+    });
+
+    it('should allow a player to use "資金集め" command when they cannot afford any card', () => {
+        // プレイヤー1の手札に「買収」カードを設定しますが、資金は足りない0に設定します（コストは2）。
         player1.hand = [{ id: 'p1card', templateId: 'ACQUIRE' }];
-        player1.funds = 1; 
-        // プレイヤー2は「資金集め」カードを持ち、資金は1に設定します。
-        player2.hand = [{ id: 'p2card', templateId: 'GAIN_FUNDS' }];
-        player2.funds = 1;
+        player1.funds = 0; 
+        // プレイヤー2は何もプレイせず、資金は0に設定します。
+        player2.hand = [];
+        player2.funds = 0;
  
         // このテスト用のGameEngineインスタンスを作成します。
         const testEngine = new GameEngine(testState, mockCardTemplates);
-        // アクションを定義します。
-        const p1Action: Action = { playerId: 'player1-id', cardId: 'p1card' };
-        const p2Action: Action = { playerId: 'player2-id', cardId: 'p2card' };
+        // プレイヤー1は「資金集め」コマンドを実行し、プレイヤー2は何もプレイしないとします。
+        const p1Action: Action = { playerId: 'player1-id', actionType: 'collect_funds' };
+        const p2Action: Action = { playerId: 'player2-id', actionType: 'play_card', cardId: 'non-existent-card' }; // NPC plays nothing
         // アクションを適用します。
         const newState = testEngine.applyAction(p1Action, p2Action);
  
@@ -253,15 +252,15 @@ describe('GameEngine', () => {
         const newPlayer1 = newState.players[0];
         const newPlayer2 = newState.players[1];
  
-        // プレイヤー1は資金不足のため「買収」アクションが失敗し、資産が変化しないことを検証します。
-        expect(newPlayer1.properties).toBe(1); // 変化なし、アクションは失敗
-        // プレイヤー2の「資金集め」アクションは成功するため、その結果が反映されていることを検証します。
-        expect(newPlayer2.properties).toBe(1); // 変化なし、P2のアクションは成功したが資産変動なし
-        expect(newPlayer2.funds).toBe(3); // 1 + 2 = 3
-        // ゲームログにプレイヤー1の「買収」が記録されていないことを検証します。
-        expect(newState.log).not.toContain('プレイヤーは「買収」をプレイした');
-        // ゲームログにプレイヤー2の「資金集め」が記録されていることを検証します。
-        expect(newState.log).toContain('対戦相手は「資金集め」をプレイした');
+        // プレイヤー1の資金が0から「資金集め」により1増えて1になっていることを検証します。
+        expect(newPlayer1.funds).toBe(1); // 0 + 1 = 1
+        // プレイヤー1の資産が変化しないことを検証します。
+        expect(newPlayer1.properties).toBe(1);
+        // ゲームログにプレイヤー1の「資金集め」が記録されていることを検証します。
+        expect(newState.log).toContain('プレイヤーは「資金集め」コマンドを実行した');
+        // プレイヤー2の資金と資産が変化しないことを検証します。
+        expect(newPlayer2.funds).toBe(0);
+        expect(newPlayer2.properties).toBe(1);
     });
   });
 

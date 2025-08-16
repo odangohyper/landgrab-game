@@ -42,7 +42,11 @@ const GameView: React.FC<GameViewProps> = () => {
 
     const setupMatch = async () => {
       const fetchedCardTemplates = await fetchCardTemplates('v1');
-      setCardTemplates(fetchedCardTemplates);
+      // Filter out '資金集め' card template
+      const filteredCardTemplates = Object.fromEntries(
+        Object.entries(fetchedCardTemplates).filter(([id, template]) => template.templateId !== 'GAIN_FUNDS')
+      );
+      setCardTemplates(filteredCardTemplates);
 
       const currentMatchId = await createMatch();
       setMatchId(currentMatchId);
@@ -79,21 +83,19 @@ const GameView: React.FC<GameViewProps> = () => {
           const player1Action = actions[currentClientId];
           const player2Action = actions[npcId];
 
-          console.log('watchActions: Player1 Action:', player1Action);
-          console.log('watchActions: Player2 Action:', player2Action);
-
-          if (player1Action && player2Action) {
-            console.log('Mutex: Both players submitted actions. Resolving turn...');
-            if (engineRef.current) {
-              console.log('watchActions: Calling applyAction...');
-              const newGameState = engineRef.current.applyAction(player1Action, player2Action);
-              console.log('watchActions: applyAction returned newGameState:', newGameState);
-              await writeState(currentMatchId, newGameState);
-              console.log('watchActions: writeState completed.');
-            }
-          } else {
+          if (!player1Action || !player2Action) { // Combine the check
             console.log('Mutex: Actions not yet complete, waiting for opponent. (Early exit)');
             return;
+          }
+
+          // If we reach here, both actions are present
+          console.log('Mutex: Both players submitted actions. Resolving turn...');
+          if (engineRef.current) {
+            console.log('watchActions: Calling applyAction...');
+            const newGameState = engineRef.current.applyAction(player1Action, player2Action);
+            console.log('watchActions: applyAction returned newGameState:', newGameState);
+            await writeState(currentMatchId, newGameState);
+            console.log('watchActions: writeState completed.');
           }
         } finally {
           isResolvingTurnRef.current = false;
@@ -215,31 +217,50 @@ const GameView: React.FC<GameViewProps> = () => {
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
-  const handleCardSelect = (cardId: string) => {
-    setSelectedCardId(cardId);
+  const handleCardSelect = (action: Action | null) => {
+    if (action === null) {
+      setSelectedCardId(null);
+    } else if (action.actionType === 'play_card') {
+      setSelectedCardId(action.cardId || null);
+    } else if (action.actionType === 'collect_funds') {
+      setSelectedCardId('COLLECT_FUNDS_COMMAND');
+    }
   };
 
   const handlePlayTurn = async () => {
     if (gameState?.phase === 'GAME_OVER') return;
 
     if (engineRef.current && gameState && matchId && clientId && opponentId) {
-      const player1Action: Action | null = selectedCardId ? { playerId: clientId, cardId: selectedCardId } : null;
-
-      const npcPlayerState = gameState.players.find(p => p.playerId === opponentId);
-      let player2Action: Action | null = null;
-      if (npcPlayerState && npcPlayerState.hand.length > 0) {
-        const chosenCard = choose_card(gameState, npcPlayerState.hand, Date.now(), cardTemplates);
-        if (chosenCard) {
-          player2Action = { playerId: opponentId, cardId: chosenCard.id };
+      let player1Action: Action | null = null;
+      if (selectedCardId) {
+        if (selectedCardId === 'COLLECT_FUNDS_COMMAND') {
+          player1Action = { playerId: clientId, actionType: 'collect_funds' };
+        } else {
+          player1Action = { playerId: clientId, actionType: 'play_card', cardId: selectedCardId };
         }
       }
 
+      const npcPlayerState = gameState.players.find(p => p.playerId === opponentId);
+      let player2Action: Action | null = null;
+      if (npcPlayerState) { // Removed hand.length > 0 check
+        console.log('handlePlayTurn: npcPlayerState.hand:', npcPlayerState.hand);
+        const chosenCard = choose_card(gameState, npcPlayerState.hand, Date.now(), cardTemplates);
+        if (chosenCard) {
+          player2Action = chosenCard;
+        }
+      }
+
+      // Prepare actions to be written to DB
+      const actionsToSubmit: { [key: string]: Action } = {};
       if (player1Action) {
-        await putAction(matchId, clientId, player1Action);
+        actionsToSubmit[clientId] = player1Action;
       }
       if (player2Action) {
-        await putAction(matchId, opponentId, player2Action);
+        actionsToSubmit[opponentId] = player2Action;
       }
+
+      // Write both actions to the database in a single operation
+      await set(ref(database, `matches/${matchId}/actions`), actionsToSubmit);
 
       setSelectedCardId(null);
     }
@@ -311,20 +332,20 @@ const GameView: React.FC<GameViewProps> = () => {
                 ))}
               </div>
             </div>
-            <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} />
+            <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} playerId={clientId || ''} />
 
             <div className="action-bar">
               {/* 資金集めボタン */}
               <div
                 id="gain-funds-button" // Unique ID for the button
-                className={`action-card-item ${selectedCardId === 'GAIN_FUNDS' ? 'selected' : ''}`} // Apply styling and selected class
+                className={`action-card-item ${selectedCardId === 'COLLECT_FUNDS_COMMAND' ? 'selected' : ''}`} // Apply styling and selected class
                 onClick={() => {
-                  if (selectedCardId === 'GAIN_FUNDS') {
+                  if (selectedCardId === 'COLLECT_FUNDS_COMMAND') {
                     handleCardSelect(null);
                   } else {
-                    handleCardSelect('GAIN_FUNDS');
+                    handleCardSelect({ playerId: clientId, actionType: 'collect_funds' });
                   }
-                }} // Use GAIN_FUNDS as its ID
+                }}
               >
                 <p className="action-card-name">資金集め</p>
               </div>
