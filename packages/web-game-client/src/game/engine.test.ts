@@ -258,8 +258,8 @@ describe('GameEngine', () => {
       // プレイヤー2の資産が変化しないことを検証します。
       expect(newPlayer2.properties).toBe(1);
       // ゲームログに両プレイヤーの「資金集め」が記録されていることを検証します。
-      expect(newState.log).toContain('プレイヤーは「資金集め」コマンドを実行した');
-      expect(newState.log).toContain('対戦相手は「資金集め」コマンドを実行した');
+      expect(newState.log).toContain('プレイヤーの行動：「資金集め」');
+      expect(newState.log).toContain('対戦相手の行動：「資金集め」');
     });
 
     it('should allow a player to use "資金集め" command when they cannot afford any card', () => {
@@ -287,7 +287,7 @@ describe('GameEngine', () => {
         // プレイヤー1の資産が変化しないことを検証します。
         expect(newPlayer1.properties).toBe(1);
         // ゲームログにプレイヤー1の「資金集め」が記録されていることを検証します。
-        expect(newState.log).toContain('プレイヤーは「資金集め」コマンドを実行した');
+        expect(newState.log).toContain('プレイヤーの行動：「資金集め」');
         // プレイヤー2の資金と資産が変化しないことを検証します。
         expect(newPlayer2.funds).toBe(0);
         expect(newPlayer2.properties).toBe(1);
