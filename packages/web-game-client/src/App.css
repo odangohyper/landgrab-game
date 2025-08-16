@@ -201,7 +201,7 @@ body {
 
 .player-hud {
   position: absolute;
-  bottom: 0px; /* Adjusted to be within main-area padding */
+  top: 0px; /* Adjusted to be within main-area padding */
   right: 20px; /* Adjusted to be within main-area padding */
   border-color: rgba(0, 255, 0, 0.7); /* Fluorescent Green */
   box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
@@ -241,7 +241,7 @@ body {
 }
 
 .game-log-area {
-  width: 350px;
+  width: 450px;
   height: 260px; /* Set fixed height to match hand container */
   background-color: #3a3a3a;
   border-radius: 8px;

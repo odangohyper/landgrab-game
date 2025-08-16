@@ -47,7 +47,9 @@ export class GameEngine {
     this.state.turn++;
     this.state.phase = 'DRAW';
     this.state.lastActions = []; // Clear last actions at the start of a new turn
-    this.state.log.push(`--- ターン ${this.state.turn} ---`);
+    const playerFunds = this.state.players[0].funds;
+    const opponentFunds = this.state.players[1].funds;
+    this.state.log.push(`ターン${this.state.turn}_プレイヤー資産：${playerFunds} 対戦相手資産：${opponentFunds}`);
 
     this.state.players.forEach(player => {
       
@@ -134,7 +136,7 @@ export class GameEngine {
           player.funds += 1; // Increase funds by 1
           resolved.push({ playerId: player.playerId, cardTemplateId: 'COLLECT_FUNDS_COMMAND' });
           const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
-          state.log.push(`${player.playerId === clientId ? 'プレイヤー' : '対戦相手'}は「資金集め」コマンドを実行した`);
+          state.log.push(`${player.playerId === clientId ? 'プレイヤー' : '対戦相手'}の行動：「資金集め」`);
         }
       }
     });
@@ -164,7 +166,7 @@ export class GameEngine {
         player1.discard.push(p1Card!);
         resolved.push({ playerId: player1.playerId, cardTemplateId: p1Template!.templateId });
         const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
-        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}は「${p1Template!.name}」をプレイした`);
+        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の行動：「${p1Template!.name}」`);
     }
     if (p2Played) {
         player2.funds -= p2Template!.cost;
@@ -172,7 +174,7 @@ export class GameEngine {
         player2.discard.push(p2Card!);
         resolved.push({ playerId: player2.playerId, cardTemplateId: p2Template!.templateId });
         const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
-        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}は「${p2Template!.name}」をプレイした`);
+        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の行動：「${p2Template!.name}」`);
     }
 
     // Step 2: Resolve conflicts and apply effects based on played cards.
@@ -189,30 +191,53 @@ export class GameEngine {
     let p1Effect = !!p1Played;
     let p2Effect = !!p2Played;
 
+    const clientId = state.players[0].playerId; // Assuming state.players[0] is always client
+
     if (isP1Acquire && isP2Acquire) {
         p1Effect = false; p2Effect = false;
+        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の「買収」は失敗！`);
+        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の「買収」は失敗！`);
     } else if (isP1Acquire && isP2Defend) {
         p1Effect = false;
+        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の「買収」は失敗！`);
     } else if (isP1Acquire && isP2Fraud) {
         p1Effect = false;
         const opponentOfP2 = state.players.find(p => p.playerId !== player2!.playerId)!;
-        this.applyCardEffect(state, player2!, p2Card!, opponentOfP2);
+        this.applyCardEffect(state, player2!, p2Card!, opponentOfP2); // 詐欺の効果を適用
+        state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の「買収」は「詐欺」で台無しだ！`);
     } else if (isP2Acquire && isP1Defend) {
         p2Effect = false;
+        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の「買収」は失敗！`);
     } else if (isP2Acquire && isP1Fraud) {
         p2Effect = false;
         const opponentOfP1 = state.players.find(p => p.playerId !== player1!.playerId)!;
-        this.applyCardEffect(state, player1!, p1Card!, opponentOfP1);
+        this.applyCardEffect(state, player1!, p1Card!, opponentOfP1); // 詐欺の効果を適用
+        state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の「買収」は「詐欺」で台無しだ！`);
     }
 
     // Apply standard, non-countered, non-fraud effects
-    if (p1Effect && p1EffectiveTemplate && p1EffectiveTemplate.type !== 'FRAUD' && p1EffectiveTemplate.type !== 'DEFEND') {
-        const opponentOfP1 = state.players.find(p => p.playerId !== player1!.playerId)!;
-        this.applyCardEffect(state, player1!, p1Card!, opponentOfP1);
+    if (p1Effect && p1EffectiveTemplate) {
+        if (p1EffectiveTemplate.type === 'ACQUIRE') {
+            const opponentOfP1 = state.players.find(p => p.playerId !== player1!.playerId)!;
+            this.applyCardEffect(state, player1!, p1Card!, opponentOfP1);
+            state.log.push(`${player1!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の「買収」が成功！`);
+        } else if (p1EffectiveTemplate.type !== 'FRAUD' && p1EffectiveTemplate.type !== 'DEFEND') {
+            // Other non-ACQUIRE, non-FRAUD, non-DEFEND cards
+            const opponentOfP1 = state.players.find(p => p.playerId !== player1!.playerId)!;
+            this.applyCardEffect(state, player1!, p1Card!, opponentOfP1);
+        }
     }
-    if (p2Effect && p2EffectiveTemplate && p2EffectiveTemplate.type !== 'FRAUD' && p2EffectiveTemplate.type !== 'DEFEND') {
-        const opponentOfP2 = state.players.find(p => p.playerId !== player2!.playerId)!;
-        this.applyCardEffect(state, player2!, p2Card!, opponentOfP2);
+
+    if (p2Effect && p2EffectiveTemplate) {
+        if (p2EffectiveTemplate.type === 'ACQUIRE') {
+            const opponentOfP2 = state.players.find(p => p.playerId !== player2!.playerId)!;
+            this.applyCardEffect(state, player2!, p2Card!, opponentOfP2);
+            state.log.push(`${player2!.playerId === clientId ? 'プレイヤー' : '対戦相手'}の「買収」が成功！`);
+        } else if (p2EffectiveTemplate.type !== 'FRAUD' && p2EffectiveTemplate.type !== 'DEFEND') {
+            // Other non-ACQUIRE, non-FRAUD, non-DEFEND cards
+            const opponentOfP2 = state.players.find(p => p.playerId !== player2!.playerId)!;
+            this.applyCardEffect(state, player2!, p2Card!, opponentOfP2);
+        }
     }
     
     return resolved;
@@ -225,6 +250,12 @@ export class GameEngine {
     if (p1Lost || p2Lost) {
       state.phase = 'GAME_OVER';
       console.log('ゲーム終了');
+
+      if (p1Lost) {
+        state.log.push(`プレイヤーの不動産が0になった！対戦相手の勝利！`);
+      } else if (p2Lost) {
+        state.log.push(`対戦相手の不動産が0になった！プレイヤーの勝利！`);
+      }
     }
   }
 }

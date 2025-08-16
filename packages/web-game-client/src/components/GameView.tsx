@@ -281,7 +281,7 @@ const GameView: React.FC<GameViewProps> = () => {
     const logsWithOriginalIndex = gameState.log.map((text, index) => ({ text, originalIndex: index }));
     
     // Find the index of the last turn marker
-    const lastTurnMarkerIndex = gameState.log.findLastIndex((log: string) => log.startsWith('--- ターン'));
+    const lastTurnMarkerIndex = gameState.log.findLastIndex((log: string) => log.startsWith('ターン'));
 
     // Take the last 6 logs to be displayed
     const slicedLogs = logsWithOriginalIndex.slice(-6);
