@@ -158,7 +158,7 @@ body {
   max-width: 700px;
   max-height: 540px;
   aspect-ratio: 700 / 540;
-  border-radius: 12px; /* More rounded corners */
+  border-radius: 3px; /* More rounded corners */
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.7); /* Stronger glow */
   border: 3px solid rgba(0, 255, 255, 0.9); /* Thicker border */
   /* margin-bottom: 1rem; */ /* Removed, flex-grow will handle spacing */
