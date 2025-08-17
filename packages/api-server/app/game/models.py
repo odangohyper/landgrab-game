@@ -1,7 +1,7 @@
 # packages/api-server/app/game/models.py
 
 from pydantic import BaseModel, Field
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Dict # Added Dict
 
 # --- ゲームロジックモデル（web-game-client/src/types.ts と同じものを反映） ---
 
@@ -45,4 +45,4 @@ class GameState(BaseModel):
 class Deck(BaseModel):
     id: Optional[str] = None  # Optional for creation, will be assigned by backend
     name: str
-    cards: List[CardTemplate] # A list of CardTemplate objects
+    cards: Dict[str, int] # A dictionary of cardId to count

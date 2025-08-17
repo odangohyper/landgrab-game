@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameEngine } from '../game/engine';
 import { MainGameScene } from '../game/scenes/MainGameScene';
-import { GameState, PlayerState, Card, Action, CardTemplate } from '../types';
+import { GameState, PlayerState, Card, Action, CardTemplate, Deck } from '../types'; // Added Deck
 import HandView from './HandView';
 import DeckInfo from './DeckInfo';
 import Modal from './Modal';
@@ -12,6 +12,7 @@ import { database } from '../firebaseConfig';
 import { ref, set } from 'firebase/database';
 import Phaser from 'phaser';
 import { choose_card } from '../game/ai/ai';
+import useLocalStorage from '../hooks/useLocalStorage';
 
 interface GameViewProps {
   // Props will be added later if needed, e.g., onGameEnd
@@ -22,6 +23,7 @@ const STACK_OFFSET_X = 2;   // X軸のずれ量 (px)
 const STACK_OFFSET_Y = 2;   // Y軸のずれ量 (px)
 
 const GameView: React.FC<GameViewProps> = () => {
+  console.log('GameView: selectedDeckId from useLocalStorage:', selectedDeckId); // ADDED LOG
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
   const [matchId, setMatchId] = useState<string | null>(null);
@@ -30,6 +32,8 @@ const GameView: React.FC<GameViewProps> = () => {
   const [cardTemplates, setCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({});
   const [gameStarted, setGameStarted] = useState<boolean>(false); // New state for game start
   const [isPhaserReady, setIsPhaserReady] = useState<boolean>(false);
+  const [hasRequiredDecks, setHasRequiredDecks] = useState<boolean>(false); // NEW STATE
+  const [selectedDeckId, setSelectedDeckId] = useLocalStorage<string | null>('selectedDeckId', null); // Use useLocalStorage
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -52,6 +56,7 @@ const GameView: React.FC<GameViewProps> = () => {
     setOpponentId(npcId);
 
     const setupMatch = async () => {
+      console.log('GameView: selectedDeckId inside setupMatch:', selectedDeckId); // ADDED LOG
       const fetchedCardTemplates = await fetchCardTemplates('v1');
       // Filter out '資金集め' card template
       const filteredCardTemplates = Object.fromEntries(
@@ -59,11 +64,46 @@ const GameView: React.FC<GameViewProps> = () => {
       );
       setCardTemplates(filteredCardTemplates);
 
+      // --- NEW LOGIC FOR LOADING DECKS ---
+      // selectedDeckId is now from useLocalStorage hook
+      let playerDeck: Deck | null = null;
+      if (selectedDeckId) {
+        try {
+          playerDeck = await getDeck(selectedDeckId);
+          console.log('Loaded player deck:', playerDeck);
+        } catch (error) {
+          console.error('Failed to load player deck:', error);
+          // localStorage.removeItem('selectedDeckId'); // This is handled by useLocalStorage now
+          // Optionally, set a user-facing error message here
+        }
+      } else {
+        console.warn('No selectedDeckId found. Please select a deck.');
+        // Optionally, set a user-facing message here
+      }
+
+      let npcDeck: Deck | null = null;
+      try {
+        const response = await fetch('/decks/npc_default_deck.json');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        npcDeck = await response.json();
+        console.log('Loaded NPC deck:', npcDeck);
+      } catch (error) {
+        console.error('Failed to load NPC default deck:', error);
+        // Optionally, set a user-facing error message here
+      }
+
+      if (!playerDeck || !npcDeck) {
+        console.error('Missing player or NPC deck. Cannot start game.');
+        setHasRequiredDecks(false); // Set to false if decks are missing
+        return; // Prevent further initialization
+      }
+      setHasRequiredDecks(true); // Both decks loaded successfully
+      // --- END NEW LOGIC ---
+
       const currentMatchId = await createMatch();
       setMatchId(currentMatchId);
-
-      // Initial game state creation only after game starts from title screen
-      // This part will be moved inside the startGame event listener
 
       const unsubscribeState = watchGameState(currentMatchId, (dbGameState) => {
         if (dbGameState) {
@@ -121,7 +161,7 @@ const GameView: React.FC<GameViewProps> = () => {
     };
 
     setupMatch();
-  }, []); // Empty dependency array to run only once on mount
+  }, [selectedDeckId]); // Dependency array now includes selectedDeckId
 
   // Effect to launch Phaser game when container ref is available
 
@@ -141,13 +181,44 @@ const GameView: React.FC<GameViewProps> = () => {
         setGameStarted(true);
 
         // Initialize game state and advance turn here
-        if (clientId && opponentId && Object.keys(cardTemplates).length > 0) {
-          const initialGameState = GameEngine.createInitialState(clientId, opponentId, cardTemplates);
-          engineRef.current = new GameEngine(initialGameState, cardTemplates);
-          const gameStateWithInitialHand = engineRef.current.advanceTurn();
-          if (matchId) { // Ensure matchId is available
-            await writeState(matchId, gameStateWithInitialHand);
+        // Ensure decks are available before creating initial state
+        if (clientId && opponentId && Object.keys(cardTemplates).length > 0 && hasRequiredDecks) { // Added hasRequiredDecks
+          // Re-fetch player and NPC decks to ensure they are available for GameEngine.createInitialState
+          // selectedDeckId is now from useLocalStorage hook
+          let playerDeck: Deck | null = null;
+          if (selectedDeckId) {
+            try {
+              playerDeck = await getDeck(selectedDeckId);
+            } catch (error) {
+              console.error('Failed to re-fetch player deck for game start:', error);
+            }
           }
+
+          let npcDeck: Deck | null = null;
+          try {
+            const response = await fetch('/decks/npc_default_deck.json');
+            if (response.ok) {
+              npcDeck = await response.json();
+            } else {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+          } catch (error) {
+            console.error('Failed to re-fetch NPC default deck for game start:', error);
+          }
+
+          if (playerDeck && npcDeck) { // Ensure both decks are present before creating state
+            const initialGameState = GameEngine.createInitialState(clientId, opponentId, cardTemplates, playerDeck, npcDeck);
+            engineRef.current = new GameEngine(initialGameState, cardTemplates);
+            const gameStateWithInitialHand = engineRef.current.advanceTurn();
+            if (matchId) { // Ensure matchId is available
+              await writeState(matchId, gameStateWithInitialHand);
+            }
+          } else {
+            console.error('Cannot start game: Player or NPC deck not available after re-fetch.');
+            // Optionally, display an error message to the user
+          }
+        } else {
+          console.error('Cannot start game: Missing client ID, opponent ID, card templates, or required decks.');
         }
         // The scene transition is now handled by TitleScene.ts
       });
@@ -164,7 +235,7 @@ const GameView: React.FC<GameViewProps> = () => {
         console.log('Phaser useEffect: Game not booted or already destroyed, skipping destruction.');
       }
     };
-  }, [clientId, opponentId, cardTemplates, matchId]); // Correct dependencies
+  }, [clientId, opponentId, cardTemplates, matchId, hasRequiredDecks]); // Added hasRequiredDecks to dependencies
 
   const isGameOverHandledRef = useRef(false);
 
@@ -453,10 +524,17 @@ const GameView: React.FC<GameViewProps> = () => {
         </div>
       )}
 
-      {/* Loading overlay, only visible before Phaser is ready */}
+      {/* Loading overlay, only visible before Phaser is ready AND decks are loaded */}
       {!isPhaserReady && (
         <div className="loading-overlay visible">
           <p>Loading game...</p>
+        </div>
+      )}
+
+      {/* Overlay for "no deck selected" or loading failure */}
+      {!hasRequiredDecks && isPhaserReady && (
+        <div className="loading-overlay visible">
+          <p>まずは「デッキ構築」を行いましょう！</p>
         </div>
       )}
 

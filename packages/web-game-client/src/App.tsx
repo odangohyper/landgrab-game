@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import GameView from './components/GameView';
-import DeckBuilder from './components/DeckBuilder';
+import DeckBuilderPage from './components/DeckBuilderPage';
 import './App.css';
 
 type View = 'game' | 'deckBuilder';
@@ -33,7 +33,7 @@ function App() {
           <GameView />
         </div>
         <div className={`view-container ${currentView === 'deckBuilder' ? 'active' : ''}`}>
-          <DeckBuilder />
+          <DeckBuilderPage />
         </div>
       </div>
     </div>

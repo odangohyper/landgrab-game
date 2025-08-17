@@ -57,3 +57,53 @@ if not firebase_admin._apps:
 # 他のモジュールからこの関数を呼び出すことで、データベースにアクセスできます。
 def get_db():
     return db
+
+# --- Deck CRUD Operations ---
+
+def get_deck_from_db(client_id: str, deck_id: str):
+    """指定されたクライアントIDとデッキIDに基づいて、データベースから特定のデッキを取得します。"""
+    if not client_id or not deck_id:
+        return None
+    ref = db.reference(f'users/{client_id}/decks/{deck_id}')
+    return ref.get()
+
+def get_decks_by_client_id_from_db(client_id: str):
+    """指定されたクライアントIDに基づいて、そのユーザーのすべてのデッキをデータベースから取得します。"""
+    if not client_id:
+        return None
+    ref = db.reference(f'users/{client_id}/decks')
+    return ref.get()
+
+def create_deck_in_db(client_id: str, deck_data: dict):
+    """新しいデッキをデータベースに作成します。"""
+    if not client_id:
+        raise ValueError("Client ID is required to create a deck.")
+    ref = db.reference(f'users/{client_id}/decks')
+    new_deck_ref = ref.push(deck_data)
+    deck_id = new_deck_ref.key
+    
+    # 作成したデッキデータに、Firebaseが自動生成したユニークなIDを追加して更新します。
+    update_data = {'id': deck_id}
+    new_deck_ref.update(update_data)
+    
+    # 完全なデッキデータを返すために、元のデータにIDを追加します。
+    deck_data['id'] = deck_id
+    return deck_data
+
+def update_deck_in_db(client_id: str, deck_id: str, deck_data: dict):
+    """既存のデッキをデータベースで更新します。"""
+    if not client_id or not deck_id:
+        raise ValueError("Client ID and Deck ID are required to update a deck.")
+    ref = db.reference(f'users/{client_id}/decks/{deck_id}')
+    ref.update(deck_data)
+    # 更新後の完全なデータを返すために、IDをマージします。
+    return {**deck_data, 'id': deck_id}
+
+def delete_deck_from_db(client_id: str, deck_id: str):
+    """データベースから特定のデッキを削除します。"""
+    if not client_id or not deck_id:
+        raise ValueError("Client ID and Deck ID are required to delete a deck.")
+    ref = db.reference(f'users/{client_id}/decks/{deck_id}')
+    ref.delete()
+    # 削除が成功したことを示すために、削除したデッキのIDを返します。
+    return {'id': deck_id}

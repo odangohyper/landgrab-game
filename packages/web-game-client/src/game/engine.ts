@@ -76,24 +76,28 @@ export class GameEngine {
     });
   }
 
-  public static createInitialState(player1Id: string, player2Id: string, cardTemplates: { [key: string]: CardTemplate }): GameState {
-    const initialDeck: Card[] = Object.values(cardTemplates)
-      .flatMap(t => Array(2).fill(t.templateId)) // 5 card types, 2 of each
-      .map((templateId, i) => ({ id: `card${i}_${templateId}`, templateId }));
-    
-    const createPlayer = (id: string): PlayerState => ({
-      playerId: id,
-      funds: 0,
-      properties: 1,
-      hand: [],
-      deck: [...initialDeck].sort(() => Math.random() - 0.5),
-      discard: [],
-    });
+  public static createInitialState(player1Id: string, player2Id: string, cardTemplates: { [key: string]: CardTemplate }, player1Deck: Deck, player2Deck: Deck): GameState {
+    const createPlayer = (id: string, deck: Deck): PlayerState => {
+      const cardsInDeck: Card[] = [];
+      for (const cardId in deck.cards) {
+        for (let i = 0; i < deck.cards[cardId]; i++) {
+          cardsInDeck.push({ id: `${cardId}-${Math.random()}-${Date.now()}`, templateId: cardId }); // Unique ID for each card instance
+        }
+      }
+      return {
+        playerId: id,
+        funds: 0,
+        properties: 1,
+        hand: [],
+        deck: cardsInDeck.sort(() => Math.random() - 0.5), // Shuffle the created deck
+        discard: [],
+      };
+    };
 
     return {
       matchId: `match-${Date.now()}`,
       turn: 0,
-      players: [createPlayer(player1Id), createPlayer(player2Id)],
+      players: [createPlayer(player1Id, player1Deck), createPlayer(player2Id, player2Deck)],
       phase: 'DRAW',
       lastActions: [],
       log: ['ゲーム開始！'],
