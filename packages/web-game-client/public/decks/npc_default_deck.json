@@ -1,7 +1,11 @@
 {
-  "deck": [
-    "ACQUIRE", "ACQUIRE", "ACQUIRE",
-    "DEFEND", "DEFEND", "DEFEND",
-    "FRAUD", "FRAUD", "FRAUD", "FRAUD"
-  ]
+  "id": "npc_default",
+  "name": "NPC Standard Deck",
+  "cards": {
+    "ACQUIRE": 2,
+    "DEFEND": 2,
+    "FRAUD": 2,
+    "BRIBE": 2,
+    "INVEST": 2
+  }
 }

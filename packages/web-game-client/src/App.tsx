@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import GameView from './components/GameView';
 import DeckBuilderPage from './components/DeckBuilderPage';
+import useLocalStorage from './hooks/useLocalStorage'; // Import the hook
 import './App.css';
 
 type View = 'game' | 'deckBuilder';
 
 function App() {
-  console.log('App component rendered.');
-  const [currentView, setCurrentView] = useState<View>('game'); // Default to game view
+  const [currentView, setCurrentView] = useState<View>('deckBuilder'); // Default to deck builder
+  const [selectedDeckId, setSelectedDeckId] = useLocalStorage<string | null>('selectedDeckId', null);
+
+  const handleDeckSelected = (deckId: string) => {
+    setSelectedDeckId(deckId);
+    setCurrentView('game');
+  };
 
   return (
     <div className="App">
@@ -30,10 +36,10 @@ function App() {
       </div>
       <div className="game-panel">
         <div className={`view-container ${currentView === 'game' ? 'active' : ''}`}>
-          <GameView />
+          <GameView selectedDeckId={selectedDeckId} />
         </div>
         <div className={`view-container ${currentView === 'deckBuilder' ? 'active' : ''}`}>
-          <DeckBuilderPage />
+          <DeckBuilderPage onDeckSelect={handleDeckSelected} />
         </div>
       </div>
     </div>
