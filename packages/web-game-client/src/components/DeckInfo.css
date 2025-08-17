@@ -1,0 +1,32 @@
+.deck-info-container.modal-view {
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  color: #fff;
+}
+
+.deck-info-container.modal-view p {
+    margin-top: 0;
+    font-size: 1.1rem;
+    color: #ccc;
+}
+
+.card-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.card-list li {
+  padding: 0.5rem;
+  font-size: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.card-list li:last-child {
+    border-bottom: none;
+}
+
+.card-list li:nth-child(even) {
+    background-color: rgba(0,0,0,0.2);
+}

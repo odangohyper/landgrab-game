@@ -79,6 +79,7 @@
 | **フェーズ6.5: UI改善** | | |
 | 48. 敵NPCのバリエーション実装(UIおよびカード選択AI) | 未 | GEMINIAI |
 | 52. NPCのAIロジック改善 | 未 | GEMINIAI |
+
 | 49. 未実装の機能への工事中アニメ実装 | 未 | GEMINIAI |
 | 51. Firebaseへの暫定版デプロイ | 未 | GEMINIAI |
 | 55. ファビコンとOGPの実装 | 未 | GEMINIAI |

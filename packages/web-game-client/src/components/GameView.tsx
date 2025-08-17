@@ -3,6 +3,8 @@ import { GameEngine } from '../game/engine';
 import { MainGameScene } from '../game/scenes/MainGameScene';
 import { GameState, PlayerState, Card, Action, CardTemplate } from '../types';
 import HandView from './HandView';
+import DeckInfo from './DeckInfo';
+import Modal from './Modal';
 import { launch } from '../game/PhaserGame';
 import { createMatch, putAction, watchActions, writeState, watchGameState, fetchCardTemplates } from '../api/realtimeClient';
 import { NullAuthAdapter } from '../auth/NullAuthAdapter';
@@ -28,6 +30,11 @@ const GameView: React.FC<GameViewProps> = () => {
   const [cardTemplates, setCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({});
   const [gameStarted, setGameStarted] = useState<boolean>(false); // New state for game start
   const [isPhaserReady, setIsPhaserReady] = useState<boolean>(false);
+
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [modalTitle, setModalTitle] = useState<string>('');
+  const [modalContent, setModalContent] = useState<'deck' | 'discard' | null>(null);
 
   const engineRef = useRef<GameEngine | null>(null);
   const phaserContainerRef = useRef<HTMLDivElement>(null);
@@ -297,6 +304,18 @@ const GameView: React.FC<GameViewProps> = () => {
     })).reverse(); // Reverse for display
   })();
 
+  const handleDeckClick = () => {
+    setModalTitle('山札');
+    setModalContent('deck');
+    setIsModalOpen(true);
+  };
+
+  const handleDiscardClick = () => {
+    setModalTitle('捨て札');
+    setModalContent('discard');
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="game-container">
       {/* Main area for Phaser canvas and HUDs */}
@@ -359,7 +378,7 @@ const GameView: React.FC<GameViewProps> = () => {
             )}
             {/* Player Deck Area */}
             {currentPlayerState && (
-              <div className="hud player-deck-area">
+              <div className="hud player-deck-area clickable" onClick={handleDeckClick}>
                 <h2>山札：{currentPlayerState.deck.length}枚</h2>
                 {Array.from({ length: Math.min(currentPlayerState.deck.length, MAX_STACK_IMAGES) }).map((_, index) => (
                   <img
@@ -377,7 +396,7 @@ const GameView: React.FC<GameViewProps> = () => {
             )}
             {/* Player Discard Area */}
             {currentPlayerState && (
-              <div className="hud player-discard-area">
+              <div className="hud player-discard-area clickable" onClick={handleDiscardClick}>
                 <h2>捨札：{currentPlayerState.discard.length}枚</h2>
                 {Array.from({ length: Math.min(currentPlayerState.discard.length, MAX_STACK_IMAGES) }).map((_, index) => (
                   <img
@@ -440,6 +459,16 @@ const GameView: React.FC<GameViewProps> = () => {
           <p>Loading game...</p>
         </div>
       )}
+
+      {/* Modal for Deck/Discard Info */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalTitle}>
+        {modalContent === 'deck' && currentPlayerState && (
+          <DeckInfo cards={currentPlayerState.deck} cardTemplates={cardTemplates} isDeck={true} />
+        )}
+        {modalContent === 'discard' && currentPlayerState && (
+          <DeckInfo cards={currentPlayerState.discard} cardTemplates={cardTemplates} isDeck={false} />
+        )}
+      </Modal>
     </div>
   );
 };
