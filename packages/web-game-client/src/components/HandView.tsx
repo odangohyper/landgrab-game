@@ -58,6 +58,7 @@ const HandView: React.FC<HandViewProps> = ({ hand, onCardSelect, playableCardIds
             <div
               key={card.id}
               className={cardClasses} // 動的に生成されたCSSクラスを適用
+              title={template?.flavorText} // Add flavor text as a tooltip
               // Modify onClick handler
               onClick={() => {
                 if (isSelected) {

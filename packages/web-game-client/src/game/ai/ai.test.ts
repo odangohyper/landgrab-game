@@ -1,197 +1,134 @@
-import { GameState, PlayerState, Card, CardTemplate, Action } from '../../types';
+import { GameState, PlayerState, Card, CardTemplate, Action, Deck } from '../../types';
 import { calculate_weights, choose_card } from './ai';
 
-describe('AI Functions', () => {
-  let mockGameState: GameState;
-  let mockPlayer: PlayerState;
-  let mockOpponent: PlayerState;
-  let mockCardTemplates: { [key: string]: CardTemplate };
+// Using the same data-driven mock templates as engine.test.ts
+const mockCardTemplates: { [key: string]: CardTemplate } = {
+  ACQUIRE: {
+    templateId: 'ACQUIRE', serialId: '010-001', name: '買収', cost: 2,
+    illustPath: '', flavorText: '',
+    effect: { category: 'ATTACK', priority: 5, target: 'OPPONENT', actions: [{ name: 'ACQUIRE_PROPERTY', value: 1 }] }
+  },
+  DEFEND: {
+    templateId: 'DEFEND', serialId: '010-002', name: '防衛', cost: 0,
+    illustPath: '', flavorText: '',
+    effect: { category: 'DEFENSE', priority: 10, target: 'SELF', actions: [{ name: 'CANCEL_EFFECT', conditions: { opponentCardCategory: 'ATTACK' } }] }
+  },
+  FRAUD: {
+    templateId: 'FRAUD', serialId: '010-003', name: '詐欺', cost: 1,
+    illustPath: '', flavorText: '',
+    effect: { category: 'DEFENSE', priority: 10, target: 'OPPONENT', actions: [
+      { name: 'CANCEL_EFFECT', conditions: { opponentCardTemplateId: 'ACQUIRE' } },
+      { name: 'ACQUIRE_PROPERTY', value: 1, conditions: { opponentCardTemplateId: 'ACQUIRE' } }
+    ]}
+  },
+  BRIBE: {
+    templateId: 'BRIBE', serialId: '010-004', name: '賄賂', cost: 5,
+    illustPath: '', flavorText: '',
+    effect: { category: 'ATTACK', priority: 8, target: 'OPPONENT', actions: [{ name: 'ACQUIRE_PROPERTY', value: 1 }] }
+  },
+  INVEST: {
+    templateId: 'INVEST', serialId: '010-005', name: '投資', cost: 1,
+    illustPath: '', flavorText: '',
+    effect: { category: 'SUPPORT', priority: 1, target: 'SELF', actions: [{ name: 'GAIN_FUNDS', value: 3 }] }
+  },
+  COLLECT_FUNDS: { // For the command
+    templateId: 'COLLECT_FUNDS', serialId: '000-001', name: '資金集め', cost: 0,
+    illustPath: '', flavorText: '',
+    effect: { category: 'SUPPORT', priority: 0, target: 'SELF', actions: [{ name: 'GAIN_FUNDS', value: 1 }] }
+  }
+};
+
+describe('AI Functions (Data-Driven)', () => {
+  let gameState: GameState;
+  let npc: PlayerState;
+  let opponent: PlayerState;
 
   beforeEach(() => {
-    mockCardTemplates = {
-      'ACQUIRE': { templateId: 'ACQUIRE', name: '買収', cost: 2, type: 'ACQUIRE' },
-      'DEFEND': { templateId: 'DEFEND', name: '防衛', cost: 0, type: 'DEFEND' },
-      'FRAUD': { templateId: 'FRAUD', name: '詐欺', cost: 1, type: 'FRAUD' },
-      'BRIBE': { templateId: 'BRIBE', name: '賄賂', cost: 5, type: 'BRIBE' },
-      'INVEST': { templateId: 'INVEST', name: '投資', cost: 1, type: 'INVEST' },
-    };
-
-    mockPlayer = {
-      playerId: 'npc-player-id',
-      funds: 0,
-      properties: 1,
-      hand: [],
-      deck: [],
-      discard: [],
-    };
-
-    mockOpponent = {
-      playerId: 'player1-id',
-      funds: 0,
-      properties: 1,
-      hand: [],
-      deck: [],
-      discard: [],
-    };
-
-    mockGameState = {
-      matchId: 'test-match',
-      turn: 1,
-      players: [mockOpponent, mockPlayer], // Ensure mockPlayer is at index 1 for consistency with engine
-      phase: 'ACTION',
-      lastActions: [],
-      log: [],
+    npc = { playerId: 'npc-player-id', funds: 3, properties: 1, hand: [], deck: [], discard: [] };
+    opponent = { playerId: 'player1-id', funds: 3, properties: 1, hand: [], deck: [], discard: [] };
+    gameState = {
+      matchId: 'test-match', turn: 1, players: [opponent, npc],
+      phase: 'ACTION', lastActions: [], log: [],
     };
   });
 
   describe('calculate_weights', () => {
-    it('should return an empty map if npcPlayer is not found', () => {
-      const stateWithoutNpc: GameState = {
-        ...mockGameState,
-        players: [mockOpponent], // mockPlayerを含まない
-      };
-      const weights = calculate_weights(stateWithoutNpc, [], mockCardTemplates);
-      expect(weights.size).toBe(0);
+    it('should prioritize ATTACK when opponent has property and NPC can afford it', () => {
+      npc.hand = [{ id: 'c1', templateId: 'ACQUIRE' }];
+      npc.funds = 2;
+      opponent.properties = 2;
+      const weights = calculate_weights(gameState, npc.hand, mockCardTemplates);
+      // Base (1) + ATTACK (5) - OpponentCanAcquirePenalty (1) = 5
+      expect(weights.get('c1')).toBeCloseTo(5);
     });
 
-    it('should assign base weight to COLLECT_FUNDS_COMMAND', () => {
-      const weights = calculate_weights(mockGameState, [], mockCardTemplates);
-      expect(weights.get('COLLECT_FUNDS_COMMAND')).toBeGreaterThanOrEqual(1);
+    it('should deprioritize ATTACK when opponent has no property', () => {
+      npc.hand = [{ id: 'c1', templateId: 'ACQUIRE' }];
+      npc.funds = 2;
+      opponent.properties = 0;
+      const weights = calculate_weights(gameState, npc.hand, mockCardTemplates);
+      expect(weights.get('c1')).toBe(0);
     });
 
-    it('should prioritize COLLECT_FUNDS_COMMAND when funds are 0', () => {
-      mockPlayer.funds = 0;
-      const weights = calculate_weights(mockGameState, [], mockCardTemplates);
-      expect(weights.get('COLLECT_FUNDS_COMMAND')).toBe(1 + 10 + 7); // Base + low funds + cannot play any card
+    it('should prioritize DEFENSE when NPC has property and opponent can attack', () => {
+      npc.hand = [{ id: 'c1', templateId: 'DEFEND' }];
+      npc.properties = 1;
+      opponent.funds = 5; // Opponent can afford ACQUIRE and BRIBE
+      const weights = calculate_weights(gameState, npc.hand, mockCardTemplates);
+      // Base (1) + DEFENSE condition met (6) = 7
+      expect(weights.get('c1')).toBeCloseTo(7);
     });
 
-    it('should prioritize COLLECT_FUNDS_COMMAND when funds are 1', () => {
-      mockPlayer.funds = 1;
-      const weights = calculate_weights(mockGameState, [], mockCardTemplates);
-      expect(weights.get('COLLECT_FUNDS_COMMAND')).toBe(1 + 5 + 7); // Base + low funds + cannot play any card
+    it('should deprioritize DEFENSE when opponent cannot attack', () => {
+      npc.hand = [{ id: 'c1', templateId: 'DEFEND' }];
+      npc.properties = 1;
+      opponent.funds = 0; // Opponent cannot afford any attack
+      const weights = calculate_weights(gameState, npc.hand, mockCardTemplates);
+      expect(weights.get('c1')).toBeCloseTo(0.1);
     });
 
-    it('should prioritize COLLECT_FUNDS_COMMAND when no cards can be afforded', () => {
-      mockPlayer.funds = 0;
-      mockPlayer.hand = [{ id: 'c1', templateId: 'ACQUIRE' }]; // Cost 2
-      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
-      expect(weights.get('COLLECT_FUNDS_COMMAND')).toBe(1 + 10 + 7); // Base + low funds + cannot play any card
-      expect(weights.get('c1')).toBe(0.01); // Unaffordable card
+    it('should prioritize SUPPORT (INVEST) when funds are low', () => {
+      npc.hand = [{ id: 'c1', templateId: 'INVEST' }];
+      npc.funds = 1; // Low funds, but can afford INVEST
+      const weights = calculate_weights(gameState, npc.hand, mockCardTemplates);
+      // Base (1) + SUPPORT condition met (5) = 6
+      expect(weights.get('c1')).toBeCloseTo(6);
     });
 
-    it('should assign weights to playable cards based on funds and opponent properties', () => {
-      mockPlayer.funds = 5;
-      mockPlayer.properties = 1;
-      mockOpponent.properties = 3; // Opponent has many properties
-      mockPlayer.hand = [
-        { id: 'c1', templateId: 'ACQUIRE' },
-        { id: 'c2', templateId: 'DEFEND' },
-        { id: 'c3', templateId: 'FRAUD' },
-      ];
-      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
-      
-      // ACQUIRE: Base (1) + opponent properties (4) + sufficient funds (3) = 8
-      expect(weights.get('c1')).toBe(1 + 4 + 3); 
-      
-      // DEFEND: Base (1) + opponent can acquire (4) = 5 (assuming opponent has funds for acquire)
-      mockOpponent.funds = 5; // Ensure opponent can acquire for DEFEND weight
-      const weightsWithOpponentFunds = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
-      expect(weightsWithOpponentFunds.get('c2')).toBe(1 + 4); 
-
-      // FRAUD: Base (1) + fraud success (5) = 6 (assuming opponent can acquire)
-      expect(weightsWithOpponentFunds.get('c3')).toBe(1 + 5); 
-    });
-
-    it('should assign weights to DEFEND and FRAUD when opponent cannot acquire', () => {
-      mockPlayer.funds = 5;
-      mockOpponent.funds = 0; // 相手は買収できない
-      mockPlayer.hand = [
-        { id: 'c1', templateId: 'ACQUIRE' },
-        { id: 'c2', templateId: 'DEFEND' },
-        { id: 'c3', templateId: 'FRAUD' },
-      ];
-      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
-
-      // ACQUIRE: 相手の資産は1なので、基本(1) + 資産(2) + 資金(3) = 6
-      expect(weights.get('c1')).toBe(1 + 2 + 3);
-
-      // DEFEND: 相手が買収できないので、DEFENDの重みは基本値のみ
-      expect(weights.get('c2')).toBe(1);
-
-      // FRAUD: 相手が買収できないので、FRAUDの重みは基本値のみ
-      expect(weights.get('c3')).toBe(1);
-    });
-
-    it('should assign high weight to BRIBE when affordable and opponent has property', () => {
-      mockPlayer.funds = 5;
-      mockOpponent.properties = 1;
-      mockPlayer.hand = [{ id: 'c1', templateId: 'BRIBE' }];
-      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
-      expect(weights.get('c1')).toBe(1 + 8);
-    });
-
-    it('should assign higher weight to INVEST when funds are low', () => {
-      mockPlayer.funds = 2; // Low funds
-      mockPlayer.hand = [{ id: 'c1', templateId: 'INVEST' }];
-      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
-      expect(weights.get('c1')).toBe(1 + 4);
-    });
-
-    it('should assign base weight to INVEST when funds are high', () => {
-      mockPlayer.funds = 5; // High funds
-      mockPlayer.hand = [{ id: 'c1', templateId: 'INVEST' }];
-      const weights = calculate_weights(mockGameState, mockPlayer.hand, mockCardTemplates);
-      expect(weights.get('c1')).toBe(1);
+    it('should highly prioritize COLLECT_FUNDS when no other card is playable', () => {
+      npc.hand = [{ id: 'c1', templateId: 'BRIBE' }]; // Cost 5
+      npc.funds = 4; // Cannot afford
+      const weights = calculate_weights(gameState, npc.hand, mockCardTemplates);
+      expect(weights.get('COLLECT_FUNDS_COMMAND')).toBeCloseTo(11); // Base (1) + No affordable cards (10)
+      expect(weights.get('c1')).toBe(0.01);
     });
   });
 
   describe('choose_card', () => {
-    it('should return COLLECT_FUNDS command if it is the only playable option', () => {
-      mockPlayer.funds = 0;
-      mockPlayer.hand = [{ id: 'c1', templateId: 'ACQUIRE' }]; // Unaffordable
-      const action = choose_card(mockGameState, mockPlayer.hand, 123, mockCardTemplates);
-      expect(action).toEqual({ playerId: 'npc-player-id', actionType: 'collect_funds' });
+    it('should return a card action for the highest weighted playable card', () => {
+      npc.hand = [{ id: 'c1', templateId: 'ACQUIRE' }, { id: 'c2', templateId: 'INVEST' }];
+      npc.funds = 2;
+      opponent.properties = 2; // Makes ACQUIRE highly valuable
+      const action = choose_card(gameState, npc.hand, 123, mockCardTemplates);
+      // ACQUIRE weight (6) > INVEST weight (1), so ACQUIRE should be chosen
+      expect(action?.actionType).toBe('play_card');
+      expect(action?.cardId).toBe('c1');
     });
 
-    it('should return a card action if a card is chosen', () => {
-      mockPlayer.funds = 5;
-      mockPlayer.hand = [{ id: 'c1', templateId: 'ACQUIRE' }];
-      const action = choose_card(mockGameState, mockPlayer.hand, 123, mockCardTemplates);
-      expect(action).toEqual({ playerId: 'npc-player-id', actionType: 'play_card', cardId: 'c1' });
+    it('should default to COLLECT_FUNDS if no card is playable', () => {
+        npc.hand = [{ id: 'c1', templateId: 'BRIBE' }]; // Cost 5
+        npc.funds = 4; // Cannot afford
+        const action = choose_card(gameState, npc.hand, 123, mockCardTemplates);
+        expect(action?.actionType).toBe('collect_funds');
     });
 
-    it('should return COLLECT_FUNDS command if chosen by weight', () => {
-      mockPlayer.funds = 0; // Make COLLECT_FUNDS highly weighted
-      mockPlayer.hand = [{ id: 'c1', templateId: 'ACQUIRE' }]; // Make ACQUIRE unaffordable
-      // Manipulate weights to force COLLECT_FUNDS selection
-      jest.spyOn(require('./ai'), 'calculate_weights').mockReturnValue(new Map([
-        ['c1', 0.01],
-        ['COLLECT_FUNDS_COMMAND', 100],
-      ]));
-      const action = choose_card(mockGameState, mockPlayer.hand, 123, mockCardTemplates);
-      expect(action).toEqual({ playerId: 'npc-player-id', actionType: 'collect_funds' });
-      jest.restoreAllMocks(); // Clean up mock
-    });
-
-    it('should return a card action if chosen by weight', () => {
-      mockPlayer.funds = 5;
-      mockPlayer.hand = [{ id: 'c1', templateId: 'ACQUIRE' }];
-      // Manipulate weights to force ACQUIRE selection
-      jest.spyOn(require('./ai'), 'calculate_weights').mockReturnValue(new Map([
-        ['c1', 100],
-        ['COLLECT_FUNDS_COMMAND', 0.01],
-      ]));
-      const action = choose_card(mockGameState, mockPlayer.hand, 123, mockCardTemplates);
-      expect(action).toEqual({ playerId: 'npc-player-id', actionType: 'play_card', cardId: 'c1' });
-      jest.restoreAllMocks(); // Clean up mock
-    });
-
-    it('should return a collect_funds action if no action is chosen (e.g., weights are empty)', () => {
-      jest.spyOn(require('./ai'), 'calculate_weights').mockReturnValue(new Map()); // 空のMapを返すようにモック
-      const action = choose_card(mockGameState, mockPlayer.hand, 123, mockCardTemplates);
-      // フォールバックとして資金集めが選択される
-      expect(action).toEqual({ playerId: 'npc-player-id', actionType: 'collect_funds' });
-      jest.restoreAllMocks(); // Clean up mock
+    it('should return a fallback action if all weights are zero', () => {
+        npc.hand = [];
+        // Mock weights to be all zero, which is an edge case
+        jest.spyOn(require('./ai'), 'calculate_weights').mockReturnValue(new Map());
+        const action = choose_card(gameState, npc.hand, 123, mockCardTemplates);
+        expect(action?.actionType).toBe('collect_funds');
+        jest.restoreAllMocks();
     });
   });
 });

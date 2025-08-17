@@ -68,6 +68,13 @@ export interface CardTemplate {
 
 // --- Deck Management Interfaces ---
 
+export type EffectHandler = (
+  state: GameState,
+  actingPlayerId: string,
+  opponentPlayerId: string, // Some effects might need opponent's ID
+  effectAction: EffectAction // Some effects might need the full EffectAction (e.g., for value)
+) => GameState;
+
 export interface Deck {
   id?: string;
   name: string;

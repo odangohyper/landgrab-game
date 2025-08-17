@@ -3,6 +3,9 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  testEnvironmentOptions: {
+    url: 'http://localhost/?charset=utf-8',
+  },
   testMatch: ['<rootDir>/src/**/*.test.ts'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   collectCoverage: true,

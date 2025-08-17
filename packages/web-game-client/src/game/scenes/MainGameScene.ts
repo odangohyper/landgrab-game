@@ -15,10 +15,8 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   preload() {
-    // Preload card backs or other shared assets
     this.load.image('card_back', 'images/cards/card_back.jpg');
-    // Explicitly preload GAIN_FUNDS image for the command
-    this.load.image('GAIN_FUNDS', 'images/cards/GAIN_FUNDS.jpg');
+    this.load.image('COLLECT_FUNDS', 'images/cards/GAIN_FUNDS.jpg'); // Load for the command
   }
 
   create() {
@@ -37,13 +35,20 @@ export class MainGameScene extends Phaser.Scene {
       for (const templateId in cardTemplates) {
         if (cardTemplates.hasOwnProperty(templateId)) {
           // Only load if not already in cache
-          if (!this.textures.exists(templateId)) {
-            this.load.image(templateId, `images/cards/${templateId}.jpg`);
+          const template = cardTemplates[templateId];
+          if (!this.textures.exists(template.templateId)) {
+            this.load.image(template.templateId, template.illustPath);
           }
         }
       }
       // Start loading the newly added images
       this.load.start();
+
+      // すべての画像がロード完了した後にイベントを発火
+      this.load.once('complete', () => {
+        console.log('All card images loaded. Emitting allImagesLoaded event.');
+        this.game.events.emit('allImagesLoaded'); // 新しいイベント
+      });
     }
   }
 
@@ -56,16 +61,16 @@ export class MainGameScene extends Phaser.Scene {
     console.log('displayTurnActions: Triggered with actions:', currentActions);
     const clientId: string | undefined = this.registry.get('clientId');
     if (!clientId) {
-            console.log('displayTurnActions: clientId not found.');
-            console.log('--- displayTurnActions END (No clientId) ---');
-            return;
-        }
-        console.log('MainGameScene: Using clientId:', clientId); // Add this log
+      console.log('displayTurnActions: clientId not found.');
+      console.log('--- displayTurnActions END (No clientId) ---');
+      return;
+    }
+    console.log('MainGameScene: Using clientId:', clientId); // Add this log
 
     if (!currentActions || currentActions.length === 0) {
-        console.log('handleActionsResolved: currentActions is null or empty, cannot display cards.');
-        console.log('--- handleActionsResolved END (Actions null/empty) ---');
-        return;
+      console.log('handleActionsResolved: currentActions is null or empty, cannot display cards.');
+      console.log('--- handleActionsResolved END (Actions null/empty) ---');
+      return;
     }
 
     this.playedCardPlayer?.destroy();
@@ -141,7 +146,6 @@ export class MainGameScene extends Phaser.Scene {
 
   private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent'): Phaser.GameObjects.Container {
     console.log(`Displaying card ${templateId} for ${playerType}`);
-    const actualTemplateId = templateId === 'COLLECT_FUNDS_COMMAND' ? 'GAIN_FUNDS' : templateId; // Use GAIN_FUNDS image for command
     const { width, height } = this.scale;
 
     const targetX = playerType === 'player' ? width / 2 + 120 : width / 2 - 120; // Swapped positions
@@ -163,9 +167,19 @@ export class MainGameScene extends Phaser.Scene {
     cardContainer.add(border);
 
     // Create the card image
-    const cardImage = this.add.image(0, 0, 'card_back')
+    const cardImage = this.add.image(0, 0, 'card_back') // Default to card_back
       .setDisplaySize(cardWidth, cardHeight);
     cardContainer.add(cardImage);
+
+    // Check if the actual card image is already loaded
+    if (this.textures.exists(templateId)) {
+      cardImage.setTexture(templateId); // If loaded, set it immediately
+    } else {
+      // If not loaded, listen for its load event
+      this.load.once(`filecomplete-image-${templateId}`, () => {
+        cardImage.setTexture(templateId); // Set texture once loaded
+      });
+    }
 
     // Animate the container
     this.tweens.add({
@@ -180,19 +194,13 @@ export class MainGameScene extends Phaser.Scene {
           duration: 200,
           ease: 'Linear',
           onComplete: () => {
-            const flipCard = () => {
-              
-              cardImage.setTexture(actualTemplateId);
-              cardImage.setDisplaySize(cardWidth, cardHeight);
-              this.tweens.add({
-                targets: cardContainer,
-                scaleX: 1,
-                duration: 200,
-                ease: 'Linear'
-              });
-            };
-
-            flipCard();
+            cardImage.setTexture(templateId); // Flip to actual card
+            this.tweens.add({
+              targets: cardContainer,
+              scaleX: 1,
+              duration: 200,
+              ease: 'Linear'
+            });
           }
         });
       }

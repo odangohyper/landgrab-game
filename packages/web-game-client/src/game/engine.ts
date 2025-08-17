@@ -1,62 +1,58 @@
 // packages/web-game-client/src/game/engine.ts
 
-import { GameState, PlayerState, Action, Card, CardTemplate, ResolvedAction } from '../types';
-import { applyAcquire } from './cards/acquire';
-import { applyDefend } from './cards/defend';
-import { applyFraud } from './cards/fraud';
+import { GameState, PlayerState, Action, Card, CardTemplate, ResolvedAction, EffectAction, Deck } from '../types';
+import { acquireProperty } from './effects/acquireProperty';
+import { gainFunds } from './effects/gainFunds';
+
+// A helper type for the resolution process
+interface EffectContext {
+  player: PlayerState;
+  opponent: PlayerState;
+  card: CardTemplate;
+  isCancelled: boolean;
+  effectAction?: EffectAction; // COLLECT_FUNDS コマンド用
+}
 
 export class GameEngine {
   private state: GameState;
   private cardTemplates: { [key: string]: CardTemplate };
 
   constructor(initialState: GameState, cardTemplates: { [key: string]: CardTemplate }) {
-    // State hydration: Ensure arrays exist, as Firebase might not store empty arrays.
     initialState.players.forEach(player => {
-      if (!player.hand) player.hand = [];
-      if (!player.deck) player.deck = [];
-      if (!player.discard) player.discard = [];
+      player.hand = player.hand || [];
+      player.deck = player.deck || [];
+      player.discard = player.discard || [];
     });
-    if (!initialState.lastActions) initialState.lastActions = [];
-
-    this.state = initialState;
+    initialState.lastActions = initialState.lastActions || [];
+    this.state = JSON.parse(JSON.stringify(initialState)); // Deep copy to ensure immutability
     this.cardTemplates = cardTemplates;
   }
 
   public getState(): GameState {
-    return JSON.parse(JSON.stringify(this.state)); // Deep copy
+    return JSON.parse(JSON.stringify(this.state));
   }
 
   public applyAction(player1Action: Action | null, player2Action: Action | null): GameState {
-    if (this.state.phase === 'GAME_OVER') return this.getState(); // Guard clause
-
-    // Create a deep copy of the state to work with, ensuring immutability.
-    const newState = this.getState();
-
-    const resolvedActions = this.resolveActions(newState, player1Action, player2Action);
-    newState.lastActions = resolvedActions; // Store resolved actions
-    
+    if (this.state.phase === 'GAME_OVER') return this.getState();
+    const newState = this.resolveActions(this.getState(), player1Action, player2Action);
     this.checkWinCondition(newState);
-
-    this.state = newState; // Update the engine's state to the new state.
+    this.state = newState;
     return this.getState();
   }
 
   public advanceTurn(): GameState {
-    if (this.state.phase === 'GAME_OVER') return this.getState(); // Guard clause
+    if (this.state.phase === 'GAME_OVER') return this.getState();
 
     this.state.turn++;
     this.state.phase = 'DRAW';
-    this.state.lastActions = []; // Clear last actions at the start of a new turn
+    this.state.lastActions = [];
     const playerFunds = this.state.players[0].funds;
     const opponentFunds = this.state.players[1].funds;
-        this.state.log.push(`ターン${this.state.turn}　プレイヤー資産：${playerFunds} 対戦相手資産：${opponentFunds}`);
+    this.state.log.push(`ターン${this.state.turn}　プレイヤー資産：${playerFunds} 対戦相手資産：${opponentFunds}`);
 
     this.state.players.forEach(player => {
-      // 手札をすべて捨て札に移動
       player.discard.push(...player.hand);
       player.hand = [];
-
-      // 新たに3枚のカードを引く
       this.drawCards(player, 3);
     });
 
@@ -77,23 +73,19 @@ export class GameEngine {
   }
 
   public static createInitialState(player1Id: string, player2Id: string, cardTemplates: { [key: string]: CardTemplate }, player1Deck: Deck, player2Deck: Deck): GameState {
-    const createPlayer = (id: string, deck: Deck): PlayerState => {
+    const createPlayer = (id: string, deckData: Deck): PlayerState => {
       const cardsInDeck: Card[] = [];
-      for (const cardId in deck.cards) {
-        for (let i = 0; i < deck.cards[cardId]; i++) {
-          cardsInDeck.push({ id: `${cardId}-${Math.random()}-${Date.now()}`, templateId: cardId }); // Unique ID for each card instance
+      for (const templateId in deckData.cards) {
+        for (let i = 0; i < deckData.cards[templateId]; i++) {
+          cardsInDeck.push({ id: `${templateId}-${i}-${Date.now()}`, templateId });
         }
       }
       return {
-        playerId: id,
-        funds: 0,
-        properties: 1,
-        hand: [],
-        deck: cardsInDeck.sort(() => Math.random() - 0.5), // Shuffle the created deck
+        playerId: id, funds: 0, properties: 1, hand: [],
+        deck: cardsInDeck.sort(() => Math.random() - 0.5),
         discard: [],
       };
     };
-
     return {
       matchId: `match-${Date.now()}`,
       turn: 0,
@@ -107,157 +99,206 @@ export class GameEngine {
   private drawCards(player: PlayerState, count: number): void {
     for (let i = 0; i < count; i++) {
       if (player.deck.length === 0) {
-        if (player.discard.length === 0) break; // No cards left to draw
+        if (player.discard.length === 0) break;
         player.deck = [...player.discard].sort(() => Math.random() - 0.5);
         player.discard = [];
       }
       const drawnCard = player.deck.shift();
-      if (drawnCard) {
-        player.hand.push(drawnCard);
+      if (drawnCard) player.hand.push(drawnCard);
+    }
+  }
+
+  private resolveActions(state: GameState, p1Action: Action | null, p2Action: Action | null): GameState {
+    let mutableState: GameState = JSON.parse(JSON.stringify(state)); // Deep copy
+    console.log('resolveActions: Initial state (mutable):', JSON.parse(JSON.stringify(mutableState)));
+    console.log('resolveActions: p1Action:', p1Action, 'p2Action:', p2Action);
+
+    mutableState.phase = 'RESOLUTION';
+    const resolvedActions: ResolvedAction[] = [];
+
+    // 1. Prepare data
+    const p1 = mutableState.players.find(p => p.playerId === p1Action?.playerId);
+    const p2 = mutableState.players.find(p => p.playerId === p2Action?.playerId);
+
+    const getEffectContext = (player: PlayerState | undefined, action: Action | null, opponent: PlayerState | undefined): EffectContext | null => {
+      if (!action || !player) return null; // action または player が undefined の場合は null を返す
+
+      // COLLECT_FUNDS コマンドの場合
+      if (action.actionType === 'collect_funds') {
+        const collectFundsEffectAction: EffectAction = {
+          name: 'GAIN_FUNDS',
+          value: 1
+        };
+        // COLLECT_FUNDS は SELF ターゲットなので opponent は不要
+        return { player, opponent: opponent || player, card: this.cardTemplates['COLLECT_FUNDS'], isCancelled: false, effectAction: collectFundsEffectAction }; // opponent が undefined の場合は player を設定
       }
-    }
-  }
 
-  private applyCardEffect(state: GameState, player: PlayerState, card: Card, opponent: PlayerState): void {
-    const cardTemplate = this.getCardTemplate(card.templateId);
-    if (!cardTemplate) return;
+      const cardInstance = player.hand.find(c => c.id === action.cardId);
+      if (!cardInstance) {
+        console.warn(`resolveActions: Card instance ${action.cardId} not found in player ${player.playerId}'s hand.`);
+        return null;
+      }
+      const template = this.cardTemplates[cardInstance.templateId];
+      if (!template) {
+        console.warn(`resolveActions: Card template ${cardInstance.templateId} not found.`);
+        return null;
+      }
 
-    switch (cardTemplate.type) {
-      case 'ACQUIRE': applyAcquire(player, opponent); break;
-      case 'DEFEND': applyDefend(player); break;
-      case 'FRAUD': applyFraud(player, opponent); break;
-    }
-  }
+      // ターゲットが OPPONENT の場合のみ opponent の存在をチェック
+      if (template.effect.target === 'OPPONENT' && !opponent) {
+        console.warn(`resolveActions: Card ${template.name} targets opponent, but opponent is not defined.`);
+        return null;
+      }
 
-  private resolveActions(state: GameState, player1Action: Action | null, player2Action: Action | null): ResolvedAction[] {
-    state.phase = 'RESOLUTION';
-    const resolved: ResolvedAction[] = [];
+      if (player.funds < template.cost) {
+        console.warn(`resolveActions: Player ${player.playerId} cannot afford card ${template.name}.`);
+        return null; // Cannot afford
+      }
+      return { player, opponent: opponent || player, card: template, isCancelled: false }; // opponent が undefined の場合は player を設定
+    };
 
-    // Handle collect_funds actions first
-    [player1Action, player2Action].forEach(action => {
-      if (action && action.actionType === 'collect_funds') {
-        const player = state.players.find(p => p.playerId === action.playerId);
-        if (player) {
-          player.funds += 1;
-          resolved.push({ playerId: player.playerId, cardTemplateId: 'COLLECT_FUNDS_COMMAND' });
-          const clientId = state.players[0].playerId;
-          state.log.push(`${player.playerId === clientId ? 'プレイヤー' : '対戦相手'}は「資金集め」コマンドを実行した`);
-        }
+    const p1Context = getEffectContext(p1, p1Action, p2);
+    const p2Context = getEffectContext(p2, p2Action, p1);
+
+    console.log('resolveActions: p1Context:', JSON.parse(JSON.stringify(p1Context)));
+    console.log('resolveActions: p2Context:', JSON.parse(JSON.stringify(p2Context)));
+
+    // Pay costs and move cards to discard
+    [p1Context, p2Context].forEach(context => {
+      if (context && context.card.templateId !== 'COLLECT_FUNDS') {
+        context.player.funds -= context.card.cost;
+        const cardInstance = context.player.hand.find(c => c.templateId === context.card.templateId)!;
+        context.player.hand = context.player.hand.filter(c => c.id !== cardInstance.id);
+        context.player.discard.push(cardInstance);
+        resolvedActions.push({ playerId: context.player.playerId, cardTemplateId: context.card.templateId });
+        mutableState.log.push(`${context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${context.card.name}」`);
       }
     });
 
-    const player1 = state.players.find(p => p.playerId === player1Action?.playerId);
-    const player2 = state.players.find(p => p.playerId === player2Action?.playerId);
-
-    const getCardInfo = (player: PlayerState | undefined, action: Action | null) => {
-      if (!player || !action || action.actionType === 'collect_funds') return { card: undefined, template: undefined };
-      const card = player.hand.find(c => c.id === action.cardId);
-      const template = card ? this.getCardTemplate(card.templateId) : undefined;
-      return { card, template };
-    };
-
-    const { card: p1Card, template: p1Template } = getCardInfo(player1, player1Action);
-    const { card: p2Card, template: p2Template } = getCardInfo(player2, player2Action);
-
-    const p1Played = p1Card && p1Template && player1 && player1.funds >= p1Template.cost;
-    const p2Played = p2Card && p2Template && player2 && player2.funds >= p2Template.cost;
-
-    if (p1Played) {
-      player1.funds -= p1Template!.cost;
-      player1.hand = player1.hand.filter(c => c.id !== p1Card!.id);
-      player1.discard.push(p1Card!);
-      resolved.push({ playerId: player1.playerId, cardTemplateId: p1Template!.templateId });
-      state.log.push(`${player1.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${p1Template!.name}」`);
+    // 2. Determine interaction (cancellation)
+    const currentTurnResolvedActions: ResolvedAction[] = [];
+    if (p1Context && p1Context.card.templateId !== 'COLLECT_FUNDS') {
+        currentTurnResolvedActions.push({ playerId: p1Context.player.playerId, cardTemplateId: p1Context.card.templateId });
     }
-    if (p2Played) {
-      player2.funds -= p2Template!.cost;
-      player2.hand = player2.hand.filter(c => c.id !== p2Card!.id);
-      player2.discard.push(p2Card!);
-      resolved.push({ playerId: player2.playerId, cardTemplateId: p2Template!.templateId });
-      state.log.push(`${player2.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${p2Template!.name}」`);
+    if (p2Context && p2Context.card.templateId !== 'COLLECT_FUNDS') {
+        currentTurnResolvedActions.push({ playerId: p2Context.player.playerId, cardTemplateId: p2Context.card.templateId });
     }
 
-    const p1Type = p1Played ? p1Template!.type : undefined;
-    const p2Type = p2Played ? p2Template!.type : undefined;
-
-    let p1Effect = !!p1Played;
-    let p2Effect = !!p2Played;
-
-    const p1Name = player1?.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手';
-    const p2Name = player2?.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手';
-
-    if (p1Type === 'BRIBE' && p2Type === 'BRIBE') {
-      p1Effect = false; p2Effect = false;
-      state.log.push('両者の賄賂は互いに打ち消しあった！');
-    } else if (p1Type === 'BRIBE') {
-      if (p2Type === 'DEFEND' || p2Type === 'FRAUD') p2Effect = false;
-    } else if (p2Type === 'BRIBE') {
-      if (p1Type === 'DEFEND' || p1Type === 'FRAUD') p1Effect = false;
-    } else if (p1Type === 'ACQUIRE' && p2Type === 'ACQUIRE') {
-      p1Effect = false; p2Effect = false;
-      state.log.push(`${p1Name}の買収は失敗した！`);
-      state.log.push(`${p2Name}の買収は失敗した！`);
-    } else if (p1Type === 'ACQUIRE' && p2Type === 'DEFEND') {
-      p1Effect = false;
-      state.log.push(`${p1Name}の買収は防がれた！`);
-    } else if (p2Type === 'ACQUIRE' && p1Type === 'DEFEND') {
-      p2Effect = false;
-      state.log.push(`${p2Name}の買収は防がれた！`);
-    } else if (p1Type === 'ACQUIRE' && p2Type === 'FRAUD') {
-      p1Effect = false;
-    } else if (p2Type === 'ACQUIRE' && p1Type === 'FRAUD') {
-      p2Effect = false;
+    if (p1Context && p2Context) {
+        // FRAUD vs ACQUIRE: FRAUD cancels ACQUIRE and steals property
+        if (p1Context.card.templateId === 'FRAUD' && p2Context.card.templateId === 'ACQUIRE') {
+            p2Context.isCancelled = true;
+        }
+        if (p2Context.card.templateId === 'FRAUD' && p1Context.card.templateId === 'ACQUIRE') {
+            p1Context.isCancelled = true;
+        }
+        // DEFEND は ACQUIRE を無効化するが、BRIBE は無効化しない
+        if (p1Context.card.templateId === 'DEFEND' && p2Context.card.templateId === 'ACQUIRE') p2Context.isCancelled = true;
+        if (p2Context.card.templateId === 'DEFEND' && p1Context.card.templateId === 'ACQUIRE') p1Context.isCancelled = true;
+        // BRIBE vs DEFEND/FRAUD
+        if (p1Context.card.templateId === 'BRIBE' && p2Context.card.effect.category === 'DEFENSE') p2Context.isCancelled = true;
+        if (p2Context.card.templateId === 'BRIBE' && p1Context.card.effect.category === 'DEFENSE') p1Context.isCancelled = true;
+        // ACQUIRE vs ACQUIRE or BRIBE vs BRIBE
+        if (p1Context.card.templateId === p2Context.card.templateId && (p1Context.card.templateId === 'ACQUIRE' || p1Context.card.templateId === 'BRIBE')) {
+            p1Context.isCancelled = true;
+            p2Context.isCancelled = true;
+            mutableState.log.push('両者の行動は互いに打ち消しあった！');
+        }
     }
 
-    if (p1Effect && p1Template) {
-      const opponent = state.players.find(p => p.playerId !== player1!.playerId)!;
-      switch (p1Template.type) {
-        case 'ACQUIRE':
-          applyAcquire(player1!, opponent);
-          state.log.push(`${p1Name}の買収は成功した！`);
-          break;
-        case 'BRIBE':
-          applyAcquire(player1!, opponent);
-          state.log.push(`${p1Name}の賄賂は成功した！`);
-          break;
-        case 'INVEST':
-          player1!.funds += 3;
-          state.log.push(`${p1Name}は投資で3資金を獲得した！`);
-          break;
-        case 'FRAUD':
-          if (p2Type === 'ACQUIRE') {
-            applyFraud(player1!, opponent);
-            state.log.push(`${p2Name}の買収は詐欺で返り討ちにあった！`);
+    // 3. Apply effects in order of priority
+    const contexts = [p1Context, p2Context].filter(c => c !== null) as EffectContext[];
+    contexts.sort((a, b) => b.card.effect.priority - a.card.effect.priority);
+
+    console.log('resolveActions: Sorted contexts for effect application:', JSON.parse(JSON.stringify(contexts)));
+
+    for (const context of contexts) {
+      console.log(`resolveActions: Applying effect for ${context.player.playerId}'s ${context.card.name}. isCancelled: ${context.isCancelled}`);
+      if (context.isCancelled) {
+        mutableState.log.push(`${context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}の「${context.card.name}」は無効化された！`);
+        continue;
+      }
+
+      const actionsToApply = context.effectAction ? [context.effectAction] : context.card.effect.actions;
+      for (const effectAction of actionsToApply) {
+        // Check conditions for the effect action
+        if (effectAction.conditions) {
+          const conditionsMet = this.checkConditions(mutableState, context.player, context.opponent, context.card, effectAction.conditions, currentTurnResolvedActions);
+          if (!conditionsMet) {
+            console.log(`resolveActions: Conditions not met for action ${effectAction.name} of ${context.card.name}. Skipping.`);
+            continue; // Skip this action if conditions are not met
           }
-          break;
+        }
+
+        console.log(`resolveActions: Applying action ${effectAction.name} for ${context.player.playerId}. Current state before applyEffect:`, JSON.parse(JSON.stringify(mutableState)));
+        mutableState = this.applyEffect(mutableState, context.player.playerId, context.opponent.playerId, effectAction);
+        console.log(`resolveActions: State after applyEffect:`, JSON.parse(JSON.stringify(mutableState)));
+      }
+    }
+    
+    mutableState.lastActions = resolvedActions;
+    return mutableState;
+  }
+
+  private checkConditions(state: GameState, player: PlayerState, opponent: PlayerState, card: CardTemplate, conditions: { [key: string]: any }, currentTurnResolvedActions: ResolvedAction[]): boolean {
+    console.log(`checkConditions: Checking conditions for ${card.name}. Conditions:`, conditions);
+    console.log(`checkConditions: Current turn resolved actions:`, JSON.parse(JSON.stringify(currentTurnResolvedActions)));
+
+    if (conditions.opponentCardTemplateId) {
+      const opponentPlayedCard = currentTurnResolvedActions.find(a => a.playerId === opponent.playerId);
+      console.log(`checkConditions: opponentPlayedCard (by templateId):`, opponentPlayedCard);
+      if (!opponentPlayedCard) {
+        console.log(`checkConditions: Condition opponentCardTemplateId not met (no opponent card played this turn).`);
+        return false;
+      }
+      if (opponentPlayedCard.cardTemplateId !== conditions.opponentCardTemplateId) {
+        console.log(`checkConditions: Condition opponentCardTemplateId not met (templateId mismatch). Expected: ${conditions.opponentCardTemplateId}, Actual: ${opponentPlayedCard.cardTemplateId}`);
+        return false;
       }
     }
 
-    if (p2Effect && p2Template) {
-      const opponent = state.players.find(p => p.playerId !== player2!.playerId)!;
-      switch (p2Template.type) {
-        case 'ACQUIRE':
-          applyAcquire(player2!, opponent);
-          state.log.push(`${p2Name}の買収は成功した！`);
-          break;
-        case 'BRIBE':
-          applyAcquire(player2!, opponent);
-          state.log.push(`${p2Name}の賄賂は成功した！`);
-          break;
-        case 'INVEST':
-          player2!.funds += 3;
-          state.log.push(`${p2Name}は投資で3資金を獲得した！`);
-          break;
-        case 'FRAUD':
-          if (p1Type === 'ACQUIRE') {
-            applyFraud(player2!, opponent);
-            state.log.push(`${p1Name}の買収は詐欺で返り討ちにあった！`);
-          }
-          break;
+    if (conditions.opponentCardCategory) {
+      const opponentPlayedCard = currentTurnResolvedActions.find(a => a.playerId === opponent.playerId);
+      console.log(`checkConditions: opponentPlayedCard (by category):`, opponentPlayedCard);
+      if (!opponentPlayedCard) {
+        console.log(`checkConditions: Condition opponentCardCategory not met (no opponent card played this turn).`);
+        return false;
+      }
+      const opponentCardTemplate = this.getCardTemplate(opponentPlayedCard.cardTemplateId);
+      if (!opponentCardTemplate) {
+        console.log(`checkConditions: Condition opponentCardCategory not met (opponent card template not found).`);
+        return false;
+      }
+      if (opponentCardTemplate.effect.category !== conditions.opponentCardCategory) {
+        console.log(`checkConditions: Condition opponentCardCategory not met (category mismatch). Expected: ${conditions.opponentCardCategory}, Actual: ${opponentCardTemplate.effect.category}`);
+        return false;
       }
     }
 
-    return resolved;
+    console.log(`checkConditions: All checked conditions met for ${card.name}.`);
+    return true; // All checked conditions met
+  }
+
+  private applyEffect(state: GameState, actingPlayerId: string, opponentPlayerId: string, action: EffectAction): GameState {
+    const player = state.players.find(p => p.playerId === actingPlayerId);
+    const opponent = state.players.find(p => p.playerId === opponentPlayerId);
+
+    if (!player || !opponent) return state;
+
+    switch (action.name) {
+      case 'ACQUIRE_PROPERTY':
+        state = acquireProperty(state, actingPlayerId, opponentPlayerId, action);
+        state.log.push(`${player.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}は不動産を1つ獲得した！`);
+        break;
+      case 'GAIN_FUNDS':
+        state = gainFunds(state, actingPlayerId, opponentPlayerId, action);
+        state.log.push(`${player.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}は${action.value}資金を獲得した！`);
+        break;
+      case 'CANCEL_EFFECT':
+        // This is handled in the interaction logic before applyEffect is called.
+        break;
+    }
+    return state;
   }
 
   private checkWinCondition(state: GameState): void {
@@ -266,11 +307,11 @@ export class GameEngine {
 
     if (p1Lost || p2Lost) {
       state.phase = 'GAME_OVER';
-      console.log('ゲーム終了');
-
-      if (p1Lost) {
+      if (p1Lost && p2Lost) {
+        state.log.push('両者、同時に不動産をすべて失った！引き分け！');
+      } else if (p1Lost) {
         state.log.push(`プレイヤーの不動産が0になった！対戦相手の勝利！`);
-      } else if (p2Lost) {
+      } else {
         state.log.push(`対戦相手の不動産が0になった！プレイヤーの勝利！`);
       }
     }

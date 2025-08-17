@@ -217,19 +217,11 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   }, [gameRef.current, matchId, clientId]);
 
   useEffect(() => {
-    if (gameRef.current && gameState && Object.keys(cardTemplates).length > 0 && clientId) {
+    if (gameRef.current && gameState && clientId) { // cardTemplates は setupMatch で設定済み
       gameRef.current.registry.set('gameState', gameState);
-      gameRef.current.registry.set('cardTemplates', cardTemplates);
-      gameRef.current.events.emit('loadCardImages');
       gameRef.current.registry.set('clientId', clientId);
-      if (gameState.lastActions && gameState.lastActions.length > 0) {
-        const scene = gameRef.current?.scene.getScene('MainGameScene') as MainGameScene;
-        if (scene) {
-          scene.displayTurnActions(gameState.lastActions);
-        }
-      }
     }
-  }, [gameState, cardTemplates, clientId]);
+  }, [gameState, clientId]);
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
@@ -239,35 +231,50 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
     } else if (action.actionType === 'play_card') {
       setSelectedCardId(action.cardId || null);
     } else if (action.actionType === 'collect_funds') {
-      setSelectedCardId('COLLECT_FUNDS_COMMAND');
+      setSelectedCardId('COLLECT_FUNDS');
     }
   };
 
   const handlePlayTurn = async () => {
-    if (gameState?.phase === 'GAME_OVER') return;
-    if (engineRef.current && gameState && matchId && clientId && opponentId) {
-      let player1Action: Action | null = null;
-      if (selectedCardId) {
-        if (selectedCardId === 'COLLECT_FUNDS_COMMAND') {
-          player1Action = { playerId: clientId, actionType: 'collect_funds' };
-        } else {
-          player1Action = { playerId: clientId, actionType: 'play_card', cardId: selectedCardId };
-        }
+    if (gameState?.phase === 'GAME_OVER' || !engineRef.current || !gameState || !matchId || !clientId || !opponentId) return;
+
+    // 1. Determine Player's Action
+    let player1Action: Action | null = null;
+    if (selectedCardId) {
+      if (selectedCardId === 'COLLECT_FUNDS') {
+        player1Action = { playerId: clientId, actionType: 'collect_funds' };
+      } else {
+        player1Action = { playerId: clientId, actionType: 'play_card', cardId: selectedCardId };
       }
-      const npcPlayerState = gameState.players.find(p => p.playerId === opponentId);
-      let player2Action: Action | null = null;
-      if (npcPlayerState) {
-        const chosenCard = choose_card(gameState, npcPlayerState.hand, Date.now(), cardTemplates);
-        if (chosenCard) {
-          player2Action = chosenCard;
-        }
-      }
-      const actionsToSubmit: { [key: string]: Action } = {};
-      if (player1Action) actionsToSubmit[clientId] = player1Action;
-      if (player2Action) actionsToSubmit[opponentId] = player2Action;
-      await set(ref(database, `matches/${matchId}/actions`), actionsToSubmit);
-      setSelectedCardId(null);
     }
+
+    // If player has not selected an action, do nothing.
+    if (!player1Action) {
+        console.warn('handlePlayTurn: Player action is null, aborting.');
+        return;
+    }
+
+    // 2. Determine NPC's Action
+    const npcPlayerState = gameState.players.find(p => p.playerId === opponentId);
+    let player2Action: Action | null = null;
+    if (npcPlayerState) {
+      player2Action = choose_card(gameState, npcPlayerState.hand, Date.now(), cardTemplates);
+    }
+
+    // Fallback for NPC: If AI returns no action, default to collecting funds.
+    if (!player2Action) {
+        console.log('NPC action was null, defaulting to collect_funds.');
+        player2Action = { playerId: opponentId, actionType: 'collect_funds' };
+    }
+
+    // 3. Submit both actions to the database
+    const actionsToSubmit: { [key: string]: Action } = {
+      [clientId]: player1Action,
+      [opponentId]: player2Action,
+    };
+
+    await set(ref(database, `matches/${matchId}/actions`), actionsToSubmit);
+    setSelectedCardId(null);
   };
 
   const currentPlayerState = gameState?.players.find(p => p.playerId === clientId);
