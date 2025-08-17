@@ -109,6 +109,16 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
           if (currentPlayerState) {
             setPlayerHand(currentPlayerState.hand);
           }
+          if (gameRef.current && isPhaserReady) { // Add isPhaserReady check here
+            console.log('GameView: Setting lastActions to Phaser Registry:', dbGameState.lastActions);
+            gameRef.current.registry.set('lastActions', dbGameState.lastActions);
+
+            // Get MainGameScene instance and call displayTurnActions directly
+            const mainGameScene = gameRef.current.scene.get('MainGameScene') as MainGameScene;
+            if (mainGameScene) {
+              mainGameScene.displayTurnActions(dbGameState.lastActions);
+            }
+          }
         }
       });
 
@@ -205,6 +215,8 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             return;
           }
           const nextTurnState = engineRef.current.advanceTurn();
+          // Explicitly clear lastActions before writing to DB
+          nextTurnState.lastActions = [];
           await writeState(matchId, nextTurnState);
           await set(ref(database, `matches/${matchId}/actions`), {});
         }

@@ -45,7 +45,6 @@ export class GameEngine {
 
     this.state.turn++;
     this.state.phase = 'DRAW';
-    this.state.lastActions = [];
     const playerFunds = this.state.players[0].funds;
     const opponentFunds = this.state.players[1].funds;
     this.state.log.push(`ターン${this.state.turn}　プレイヤー資産：${playerFunds} 対戦相手資産：${opponentFunds}`);
@@ -174,6 +173,16 @@ export class GameEngine {
         mutableState.log.push(`${context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${context.card.name}」`);
       }
     });
+
+    // Add COLLECT_FUNDS actions to resolvedActions
+    if (p1Context && p1Context.card.templateId === 'COLLECT_FUNDS') {
+      resolvedActions.push({ playerId: p1Context.player.playerId, cardTemplateId: p1Context.card.templateId });
+      mutableState.log.push(`${p1Context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}は資金集めを行った！`);
+    }
+    if (p2Context && p2Context.card.templateId === 'COLLECT_FUNDS') {
+      resolvedActions.push({ playerId: p2Context.player.playerId, cardTemplateId: p2Context.card.templateId });
+      mutableState.log.push(`${p2Context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}は資金集めを行った！`);
+    }
 
     // 2. Determine interaction (cancellation)
     const currentTurnResolvedActions: ResolvedAction[] = [];

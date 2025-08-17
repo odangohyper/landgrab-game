@@ -53,6 +53,7 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   public displayTurnActions(actions: ResolvedAction[] | null) {
+    console.log('*** displayTurnActions CALLED ***');
     console.log('--- displayTurnActions START ---');
     console.log('Parameter "actions":', actions);
 
