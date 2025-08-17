@@ -90,19 +90,42 @@ export function watchGameState(matchId: string, callback: (gameState: GameState)
 }
 
 /**
- * Realtime Database上のカードテンプレートを読み込みます。
- * @param version カードテンプレートのバージョン (例: 'v1')
- * @returns カードテンプレートのマップ
+ * Reads card templates from local JSON files.
+ * @returns A map of card templates, keyed by templateId.
  */
-export async function fetchCardTemplates(version: string = 'v1'): Promise<{ [templateId: string]: CardTemplate }> {
-  const templatesRef = ref(database, `cards/${version}/templates`);
-  const snapshot = await new Promise<DataSnapshot>((resolve) => {
-    onValue(templatesRef, (snap) => {
-      off(templatesRef, 'value'); // 一度読み込んだらリスナーを解除
-      resolve(snap);
-    }, { onlyOnce: true }); // 一度だけ読み込む
-  });
-  return snapshot.val() || {};
+export async function fetchCardTemplates(): Promise<{ [templateId: string]: CardTemplate }> {
+  const cardDefinitionFiles = [
+    'ACQUIRE.json',
+    'DEFEND.json',
+    'FRAUD.json',
+    'BRIBE.json',
+    'INVEST.json',
+    'COLLECT_FUNDS.json'
+  ];
+
+  try {
+    const cardPromises = cardDefinitionFiles.map(file =>
+      fetch(`/cards/${file}`).then(res => {
+        if (!res.ok) {
+          throw new Error(`Failed to fetch ${file}: ${res.statusText}`);
+        }
+        return res.json();
+      })
+    );
+
+    const templates: CardTemplate[] = await Promise.all(cardPromises);
+    
+    // Convert the array of templates into a map keyed by templateId
+    const templateMap = templates.reduce((acc, template) => {
+      acc[template.templateId] = template;
+      return acc;
+    }, {} as { [templateId: string]: CardTemplate });
+
+    return templateMap;
+  } catch (error) {
+    console.error("Error fetching card templates:", error);
+    return {}; // Return empty object on failure
+  }
 }
 
 /**

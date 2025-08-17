@@ -1,0 +1,19 @@
+{
+  "templateId": "COLLECT_FUNDS",
+  "serialId": "000-001",
+  "name": "資金集め",
+  "cost": 0,
+  "illustPath": "images/cards/GAIN_FUNDS.jpg",
+  "flavorText": "資金！なにはともあれ資金ですわ！",
+  "effect": {
+    "category": "SUPPORT",
+    "priority": 0,
+    "target": "SELF",
+    "actions": [
+      {
+        "name": "GAIN_FUNDS",
+        "value": 1
+      }
+    ]
+  }
+}

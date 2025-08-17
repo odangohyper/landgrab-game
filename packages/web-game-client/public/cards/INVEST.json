@@ -1,0 +1,19 @@
+{
+  "templateId": "INVEST",
+  "serialId": "010-005",
+  "name": "投資",
+  "cost": 1,
+  "illustPath": "images/cards/INVEST.jpg",
+  "flavorText": "未来への投資は、確実なリターンを生みますのよ",
+  "effect": {
+    "category": "SUPPORT",
+    "priority": 1,
+    "target": "SELF",
+    "actions": [
+      {
+        "name": "GAIN_FUNDS",
+        "value": 3
+      }
+    ]
+  }
+}

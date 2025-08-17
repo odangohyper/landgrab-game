@@ -1,0 +1,21 @@
+{
+  "templateId": "DEFEND",
+  "serialId": "010-002",
+  "name": "防衛",
+  "cost": 0,
+  "illustPath": "images/cards/DEFEND.jpg",
+  "flavorText": "その手には乗りませんわよ！！",
+  "effect": {
+    "category": "DEFENSE",
+    "priority": 10,
+    "target": "SELF",
+    "actions": [
+      {
+        "name": "CANCEL_EFFECT",
+        "conditions": {
+          "opponentCardCategory": "ATTACK"
+        }
+      }
+    ]
+  }
+}

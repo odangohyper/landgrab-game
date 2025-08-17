@@ -1,0 +1,28 @@
+{
+  "templateId": "FRAUD",
+  "serialId": "010-003",
+  "name": "詐欺",
+  "cost": 1,
+  "illustPath": "images/cards/FRAUD.jpg",
+  "flavorText": "まったく怪しくない、この書類にサインしてくださいまし！",
+  "effect": {
+    "category": "DEFENSE",
+    "priority": 10,
+    "target": "OPPONENT",
+    "actions": [
+      {
+        "name": "CANCEL_EFFECT",
+        "conditions": {
+          "opponentCardTemplateId": "ACQUIRE"
+        }
+      },
+      {
+        "name": "ACQUIRE_PROPERTY",
+        "value": 1,
+        "conditions": {
+          "opponentCardTemplateId": "ACQUIRE"
+        }
+      }
+    ]
+  }
+}

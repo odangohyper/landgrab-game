@@ -1,0 +1,19 @@
+{
+  "templateId": "ACQUIRE",
+  "serialId": "010-001",
+  "name": "買収",
+  "cost": 2,
+  "illustPath": "images/cards/ACQUIRE.jpg",
+  "flavorText": "正当な取引ですわ。ええ、正当ですとも。",
+  "effect": {
+    "category": "ATTACK",
+    "priority": 5,
+    "target": "OPPONENT",
+    "actions": [
+      {
+        "name": "ACQUIRE_PROPERTY",
+        "value": 1
+      }
+    ]
+  }
+}

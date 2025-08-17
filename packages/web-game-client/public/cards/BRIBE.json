@@ -1,0 +1,19 @@
+{
+  "templateId": "BRIBE",
+  "serialId": "010-004",
+  "name": "賄賂",
+  "cost": 5,
+  "illustPath": "images/cards/BRIBE.jpg",
+  "flavorText": "お金で解決できないことなんて、ありませんわよね？",
+  "effect": {
+    "category": "ATTACK",
+    "priority": 8,
+    "target": "OPPONENT",
+    "actions": [
+      {
+        "name": "ACQUIRE_PROPERTY",
+        "value": 1
+      }
+    ]
+  }
+}
