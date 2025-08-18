@@ -44,6 +44,7 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   const phaserContainerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const isResolvingTurnRef = useRef(false);
+  const isAdvancingTurnRef = useRef(false); // Add this line
   const isGameOverHandledRef = useRef(false);
 
   useEffect(() => {
@@ -106,25 +107,7 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
         const currentMatchId = await createMatch();
         setMatchId(currentMatchId);
 
-        gameInstance.events.on('animationComplete', async () => {
-            if (engineRef.current && currentMatchId) {
-                const currentState = engineRef.current.getState();
-                if (currentState.phase !== 'RESOLUTION' && currentState.phase !== 'GAME_OVER') return;
-                if (currentState.phase === 'GAME_OVER') {
-                    if (!isGameOverHandledRef.current) {
-                        isGameOverHandledRef.current = true;
-                        const playerState = engineRef.current.getState().players.find(p => p.playerId === currentClientId);
-                        const message = playerState && playerState.properties > 0 ? 'You Win!' : 'You Lose!';
-                        const isWin = playerState && playerState.properties > 0;
-                        gameInstance.events.emit('gameOver', message, isWin);
-                    }
-                    return;
-                }
-                const nextTurnState = engineRef.current.advanceTurn();
-                await writeState(currentMatchId, nextTurnState);
-                await set(ref(database, `matches/${currentMatchId}/actions`), {});
-            }
-        });
+        
 
         watchActions(currentMatchId, async (actions) => {
             if (isResolvingTurnRef.current || engineRef.current?.getState().phase === 'GAME_OVER') return;
@@ -143,12 +126,44 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             }
         });
 
-        watchGameState(currentMatchId, (dbGameState) => {
-            if (dbGameState) {
-                engineRef.current = new GameEngine(dbGameState, filteredTemplates);
-                setGameState(dbGameState);
-                const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
-                if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
+        watchGameState(currentMatchId, async (dbGameState) => {
+            if (!dbGameState || !engineRef.current || !currentMatchId) return;
+
+            const currentPhase = engineRef.current.getState().phase;
+            engineRef.current = new GameEngine(dbGameState, filteredTemplates);
+            setGameState(dbGameState);
+            const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
+            if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
+
+            // Only advance turn if the state has just been resolved
+            // Only advance turn if the state has just been resolved and not already advancing
+            if (dbGameState.phase === 'RESOLUTION' && !isAdvancingTurnRef.current) {
+                isAdvancingTurnRef.current = true; // Acquire lock
+
+                // Check for game over before advancing
+                if (dbGameState.phase === 'GAME_OVER') {
+                    if (!isGameOverHandledRef.current) {
+                        isGameOverHandledRef.current = true;
+                        const playerState = dbGameState.players.find(p => p.playerId === clientId);
+                        const message = playerState && playerState.properties > 0 ? 'You Win!' : 'You Lose!';
+                        const isWin = playerState && playerState.properties > 0;
+                        gameRef.current?.events.emit('gameOver', message, isWin);
+                    }
+                    isAdvancingTurnRef.current = false; // Release lock
+                    return;
+                }
+
+                // Wait a bit for the resolution animation to be noticeable
+                setTimeout(async () => {
+                    try {
+                        const nextTurnState = engineRef.current.advanceTurn();
+                        await writeState(currentMatchId, nextTurnState);
+                        // Clear actions for the new turn
+                        await set(ref(database, `matches/${currentMatchId}/actions`), {});
+                    } finally {
+                        isAdvancingTurnRef.current = false; // Ensure lock is released
+                    }
+                }, 1000); // 1 second delay
             }
         });
 
@@ -226,6 +241,7 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
 
     await set(ref(database, `matches/${matchId}/actions`), actionsToSubmit);
     setSelectedCardId(null);
+    isAdvancingTurnRef.current = false; // Reset the flag when a new turn is initiated
   };
 
   const currentPlayerState = gameState?.players.find(p => p.playerId === clientId);
