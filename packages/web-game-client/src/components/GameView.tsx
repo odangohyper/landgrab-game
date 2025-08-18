@@ -135,8 +135,25 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             const currentPhase = engineRef.current.getState().phase;
             engineRef.current = new GameEngine(dbGameState, filteredTemplates);
             setGameState(dbGameState);
+            // Firebaseから取得したplayersがオブジェクトの場合に配列に変換する
+            if (dbGameState.players && typeof dbGameState.players === 'object' && !Array.isArray(dbGameState.players)) {
+                dbGameState.players = Object.values(dbGameState.players);
+            }
             const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
             if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
+            // DEBUG LOGS
+            console.log('DEBUG: dbGameState.players:', dbGameState.players);
+            dbGameState.players.forEach((p, index) => {
+                console.log(`DEBUG: dbGameState.players[${index}].playerId:`, p.playerId);
+            });
+            console.log('DEBUG: clientId:', clientId);
+            console.log('DEBUG: opponentId:', opponentId);
+
+            const playerState = dbGameState.players.find(p => p.playerId === clientId);
+            const opponentState = dbGameState.players.find(p => p.playerId === opponentId);
+
+            console.log('DEBUG: playerState:', playerState);
+            console.log('DEBUG: opponentState:', opponentState);
             // Pass lastActions to Phaser Registry for animation
             if (dbGameState.lastActions) {
                 gameRef.current?.registry.set('lastActions', dbGameState.lastActions);
@@ -147,8 +164,30 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
                 if (!isGameOverHandledRef.current) {
                     isGameOverHandledRef.current = true;
                     const playerState = dbGameState.players.find(p => p.playerId === clientId);
-                    const message = playerState && playerState.properties > 0 ? 'You Win!' : 'You Lose!';
-                    const isWin = playerState && playerState.properties > 0;
+                    const opponentState = dbGameState.players.find(p => p.playerId === opponentId);
+
+                    let message: string;
+                    let isWin: boolean;
+
+                    if (playerState && opponentState) {
+                        const p1Lost = playerState.properties <= 0;
+                        const p2Lost = opponentState.properties <= 0;
+
+                        if (p1Lost && p2Lost) {
+                            message = 'Draw!'; // 引き分け
+                            isWin = false; // 引き分けは勝利ではない
+                        } else if (p1Lost) {
+                            message = 'You Lose!'; // プレイヤーの敗北
+                            isWin = false;
+                        } else { // p2Lost の場合
+                            message = 'You Win!'; // プレイヤーの勝利
+                            isWin = true;
+                        }
+                    } else {
+                        message = 'Game Over (Unknown Result)';
+                        isWin = false;
+                    }
+                    
                     gameRef.current?.events.emit('gameOver', message, isWin);
                 }
                 // Ensure no further turn advancement happens if game is over
