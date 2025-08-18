@@ -204,7 +204,7 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
     } else if (action.actionType === 'play_card') {
       setSelectedCardId(action.cardId || null);
     } else if (action.actionType === 'collect_funds') {
-      setSelectedCardId('COLLECT_FUNDS');
+      setSelectedCardId('COLLECT_FUNDS_COMMAND');
     }
   };
 
@@ -214,7 +214,7 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
     // 1. Determine Player's Action
     let player1Action: Action | null = null;
     if (selectedCardId) {
-      if (selectedCardId === 'COLLECT_FUNDS') {
+      if (selectedCardId === 'COLLECT_FUNDS_COMMAND') {
         player1Action = { playerId: clientId, actionType: 'collect_funds' };
       } else {
         player1Action = { playerId: clientId, actionType: 'play_card', cardId: selectedCardId };
