@@ -103,6 +103,9 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
         gameRef.current = gameInstance;
         setIsPhaserReady(true);
 
+        // Set clientId in Phaser Registry
+        gameInstance.registry.set('clientId', currentClientId);
+
         // 4. Setup Firebase listeners and initial state post-launch
         const currentMatchId = await createMatch();
         setMatchId(currentMatchId);
@@ -134,6 +137,10 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             setGameState(dbGameState);
             const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
             if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
+            // Pass lastActions to Phaser Registry for animation
+            if (dbGameState.lastActions) {
+                gameRef.current?.registry.set('lastActions', dbGameState.lastActions);
+            }
 
             // Only advance turn if the state has just been resolved
             // Only advance turn if the state has just been resolved and not already advancing

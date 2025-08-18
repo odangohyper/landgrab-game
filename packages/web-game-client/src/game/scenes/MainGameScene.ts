@@ -45,37 +45,9 @@ export class MainGameScene extends Phaser.Scene {
     }
   }
 
-  private handleRegistryChange(parent: any, key: string, data: any, previousData: any) {
-    if (key === 'lastActions') {
-      // Ensure data is not null and is different from the previous data to avoid loops
-      if (data && JSON.stringify(data) !== JSON.stringify(previousData)) {
-        this.displayTurnActions(data);
-      }
-    }
-  }
+  
 
-  private loadCardImages() {
-    const cardTemplates: { [templateId: string]: CardTemplate } = this.registry.get('cardTemplates');
-    if (cardTemplates) {
-      for (const templateId in cardTemplates) {
-        if (cardTemplates.hasOwnProperty(templateId)) {
-          // Only load if not already in cache
-          const template = cardTemplates[templateId];
-          if (!this.textures.exists(template.templateId)) {
-            this.load.image(template.templateId, template.illustPath);
-          }
-        }
-      }
-      // Start loading the newly added images
-      this.load.start();
-
-      // すべての画像がロード完了した後にイベントを発火
-      this.load.once('complete', () => {
-        console.log('All card images loaded. Emitting allImagesLoaded event.');
-        this.game.events.emit('allImagesLoaded'); // 新しいイベント
-      });
-    }
-  }
+  
 
   public displayTurnActions(actions: ResolvedAction[] | null) {
     console.log('*** displayTurnActions CALLED ***');
