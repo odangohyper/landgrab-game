@@ -49,13 +49,19 @@ export class GameEngine {
     const opponentFunds = this.state.players[1].funds;
     this.state.log.push(`ターン${this.state.turn}　プレイヤー資産：${playerFunds} 対戦相手資産：${opponentFunds}`);
 
+    // 各プレイヤーの手札をすべて捨て札に移動
     this.state.players.forEach(player => {
       player.discard.push(...player.hand);
       player.hand = [];
+    });
+
+    // その後、各プレイヤーが3枚ドローする
+    this.state.players.forEach(player => {
       this.drawCards(player, 3);
     });
 
     this.state.phase = 'ACTION';
+    this.state.lastActions = []; // lastActionsをクリア
     return this.getState();
   }
 
@@ -143,17 +149,12 @@ export class GameEngine {
         return null;
       }
 
-      // ターゲットが OPPONENT の場合のみ opponent の存在をチェック
-      if (template.effect.target === 'OPPONENT' && !opponent) {
-        console.warn(`resolveActions: Card ${template.name} targets opponent, but opponent is not defined.`);
-        return null;
-      }
-
       if (player.funds < template.cost) {
         console.warn(`resolveActions: Player ${player.playerId} cannot afford card ${template.name}.`);
         return null; // Cannot afford
       }
-      return { player, opponent: opponent || player, card: template, isCancelled: false }; // opponent が undefined の場合は player を設定
+      // opponentが未定義でもコンテキストは作成し、effect適用時にチェックする
+      return { player, opponent: opponent || player, card: template, isCancelled: false };
     };
 
     const p1Context = getEffectContext(p1, p1Action, p2);
@@ -230,17 +231,26 @@ export class GameEngine {
 
       const actionsToApply = context.effectAction ? [context.effectAction] : context.card.effect.actions;
       for (const effectAction of actionsToApply) {
-        // Check conditions for the effect action
         if (effectAction.conditions) {
-          const conditionsMet = this.checkConditions(mutableState, context.player, context.opponent, context.card, effectAction.conditions, currentTurnResolvedActions);
+          const opponentPlayer = context.player.playerId === mutableState.players[0].playerId ? mutableState.players[1] : mutableState.players[0];
+          const conditionsMet = this.checkConditions(mutableState, context.player, opponentPlayer, context.card, effectAction.conditions, currentTurnResolvedActions);
           if (!conditionsMet) {
             console.log(`resolveActions: Conditions not met for action ${effectAction.name} of ${context.card.name}. Skipping.`);
-            continue; // Skip this action if conditions are not met
+            continue;
           }
         }
 
+        // For opponent-targeted effects, ensure the opponent exists.
+        if (context.card.effect.target === 'OPPONENT' && !context.opponent) {
+          console.warn(`Action ${effectAction.name} for ${context.card.name} requires an opponent, but none was provided.`);
+          continue;
+        }
+
         console.log(`resolveActions: Applying action ${effectAction.name} for ${context.player.playerId}. Current state before applyEffect:`, JSON.parse(JSON.stringify(mutableState)));
-        mutableState = this.applyEffect(mutableState, context.player.playerId, context.opponent.playerId, effectAction);
+        // applyEffectから返された新しい状態をmutableStateに再代入する
+        // opponentPlayerIdを正しく解決する
+        const opponentPlayerId = context.player.playerId === p1?.playerId ? p2?.playerId : p1?.playerId;
+        mutableState = this.applyEffect(mutableState, context.player.playerId, opponentPlayerId, effectAction);
         console.log(`resolveActions: State after applyEffect:`, JSON.parse(JSON.stringify(mutableState)));
       }
     }
@@ -288,18 +298,23 @@ export class GameEngine {
     return true; // All checked conditions met
   }
 
-  private applyEffect(state: GameState, actingPlayerId: string, opponentPlayerId: string, action: EffectAction): GameState {
+  private applyEffect(state: GameState, actingPlayerId: string, opponentPlayerId: string | undefined, action: EffectAction): GameState {
     const player = state.players.find(p => p.playerId === actingPlayerId);
-    const opponent = state.players.find(p => p.playerId === opponentPlayerId);
+    if (!player) return state; // Acting player must exist
 
-    if (!player || !opponent) return state;
+    const opponent = opponentPlayerId ? state.players.find(p => p.playerId === opponentPlayerId) : undefined;
 
     switch (action.name) {
       case 'ACQUIRE_PROPERTY':
+        if (!opponent) {
+          console.warn(`ACQUIRE_PROPERTY requires an opponent, but opponentPlayerId was not provided.`);
+          return state;
+        }
         state = acquireProperty(state, actingPlayerId, opponentPlayerId, action);
         state.log.push(`${player.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}は不動産を1つ獲得した！`);
         break;
       case 'GAIN_FUNDS':
+        // Opponent is not required for GAIN_FUNDS
         state = gainFunds(state, actingPlayerId, opponentPlayerId, action);
         state.log.push(`${player.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}は${action.value}資金を獲得した！`);
         break;

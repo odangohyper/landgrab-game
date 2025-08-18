@@ -16,17 +16,42 @@ export class MainGameScene extends Phaser.Scene {
 
   preload() {
     this.load.image('card_back', 'images/cards/card_back.jpg');
-    this.load.image('COLLECT_FUNDS', 'images/cards/GAIN_FUNDS.jpg'); // Load for the command
+    this.load.image('COLLECT_FUNDS', 'images/cards/GAIN_FUNDS.jpg');
+
+    // Load all card images passed from React via registry
+    const cardTemplates: { [templateId: string]: CardTemplate } = this.registry.get('cardTemplates');
+    if (cardTemplates) {
+      for (const templateId in cardTemplates) {
+        if (Object.prototype.hasOwnProperty.call(cardTemplates, templateId)) {
+          const template = cardTemplates[templateId];
+          if (!this.textures.exists(template.templateId)) {
+            this.load.image(template.templateId, template.illustPath);
+          }
+        }
+      }
+    }
   }
 
   create() {
     console.log('MainGameScene create() called');
-    // The main game area is intentionally left blank, as HUDs and player info
-    // are now handled by the React UI. This scene is only for card animations
-    // and game over messages.
+    this.registry.events.on('changedata', this.handleRegistryChange, this);
+  }
 
-    // Listen for custom event to load card images
-    this.game.events.on('loadCardImages', this.loadCardImages, this);
+  private handleRegistryChange(parent: any, key: string, data: any, previousData: any) {
+    if (key === 'lastActions') {
+      if (data && JSON.stringify(data) !== JSON.stringify(previousData)) {
+        this.displayTurnActions(data);
+      }
+    }
+  }
+
+  private handleRegistryChange(parent: any, key: string, data: any, previousData: any) {
+    if (key === 'lastActions') {
+      // Ensure data is not null and is different from the previous data to avoid loops
+      if (data && JSON.stringify(data) !== JSON.stringify(previousData)) {
+        this.displayTurnActions(data);
+      }
+    }
   }
 
   private loadCardImages() {
@@ -168,21 +193,11 @@ export class MainGameScene extends Phaser.Scene {
     cardContainer.add(border);
 
     // Create the card image
-    const cardImage = this.add.image(0, 0, 'card_back') // Default to card_back
+    const cardImage = this.add.image(0, 0, 'card_back')
       .setDisplaySize(cardWidth, cardHeight);
     cardContainer.add(cardImage);
 
-    // Check if the actual card image is already loaded
-    if (this.textures.exists(templateId)) {
-      cardImage.setTexture(templateId); // If loaded, set it immediately
-    } else {
-      // If not loaded, listen for its load event
-      this.load.once(`filecomplete-image-${templateId}`, () => {
-        cardImage.setTexture(templateId); // Set texture once loaded
-      });
-    }
-
-    // Animate the container
+    // Animate the container for the flip effect
     this.tweens.add({
       targets: cardContainer,
       alpha: 1,
@@ -195,7 +210,9 @@ export class MainGameScene extends Phaser.Scene {
           duration: 200,
           ease: 'Linear',
           onComplete: () => {
-            cardImage.setTexture(templateId); // Flip to actual card
+            // After scaling to 0 (invisible), set the actual card texture
+            cardImage.setTexture(templateId);
+            // Then scale back to 1 to reveal the card
             this.tweens.add({
               targets: cardContainer,
               scaleX: 1,

@@ -2,21 +2,26 @@
 
 import Phaser from 'phaser';
 import { MainGameScene } from './scenes/MainGameScene';
-import { TitleScene } from './scenes/TitleScene'; // Import TitleScene
+import { TitleScene } from './scenes/TitleScene';
+import { CardTemplate } from '../types';
 
-export const launch = (parentEl: HTMLElement) => {
+export const launch = (parentEl: HTMLElement, cardTemplates: { [id: string]: CardTemplate }) => {
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     parent: parentEl,
-    backgroundColor: '#282c34', // Dark background
+    backgroundColor: '#282c34',
     width: 700,
     height: 540,
-    scene: [TitleScene, MainGameScene], // TitleScene is now the first scene
+    scene: [TitleScene, MainGameScene],
     dom: {
-      createContainer: true // ここを追加
+      createContainer: true
     }
   };
 
   const game = new Phaser.Game(config);
+
+  // Pass card templates to the MainGameScene via the registry
+  game.registry.set('cardTemplates', cardTemplates);
+
   return game;
 };

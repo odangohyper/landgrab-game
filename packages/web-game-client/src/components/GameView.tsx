@@ -47,193 +47,132 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   const isGameOverHandledRef = useRef(false);
 
   useEffect(() => {
-    console.log(`GameView useEffect[selectedDeckId] triggered. ID: ${selectedDeckId}`);
-    const authAdapter = new NullAuthAdapter();
-    const currentClientId = authAdapter.getClientId();
-    setClientId(currentClientId);
+    const initializeGame = async () => {
+      console.log("InitializeGame: Starting...");
 
-    const npcId = 'npc-player-id';
-    setOpponentId(npcId);
+      // 1. Auth
+      const authAdapter = new NullAuthAdapter();
+      const currentClientId = authAdapter.getClientId();
+      setClientId(currentClientId);
+      const npcId = 'npc-player-id';
+      setOpponentId(npcId);
+      console.log(`InitializeGame: ClientID: ${currentClientId}, OpponentID: ${npcId}`);
 
-    const setupMatch = async () => {
-      console.log('setupMatch() started.');
-      const fetchedCardTemplates = await fetchCardTemplates('v1');
-      const filteredCardTemplates = Object.fromEntries(
-        Object.entries(fetchedCardTemplates).filter(([id, template]) => template.templateId !== 'GAIN_FUNDS')
-      );
-      setCardTemplates(filteredCardTemplates);
-
-      let loadedPlayerDeck: Deck | null = null;
-      if (selectedDeckId) {
-        try {
-          loadedPlayerDeck = await getDeck(selectedDeckId);
-          setPlayerDeck(loadedPlayerDeck);
-          console.log('Player deck loaded successfully.', loadedPlayerDeck);
-        } catch (error) {
-          console.error('Failed to load player deck:', error);
-        }
-      } else {
-        console.warn('No selectedDeckId found. Please select a deck.');
+      if (!selectedDeckId) {
+        console.warn('InitializeGame: No deck selected. Aborting.');
         setHasRequiredDecks(false);
+        setIsPhaserReady(true); // Allow showing the "select deck" message
         return;
       }
 
-      let loadedNpcDeck: Deck | null = null;
-      try {
-        const response = await fetch('/decks/npc_default_deck.json');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        loadedNpcDeck = await response.json();
-        setNpcDeck(loadedNpcDeck);
-        console.log('NPC deck loaded successfully.', loadedNpcDeck);
-      } catch (error) {
-        console.error('Failed to load NPC default deck:', error);
-      }
+      // 2. Fetch all required data
+      console.log("InitializeGame: Fetching required data...");
+      const fetchedCardTemplates = await fetchCardTemplates('v1');
+      const filteredTemplates = Object.fromEntries(
+        Object.entries(fetchedCardTemplates).filter(([, template]) => template.templateId !== 'GAIN_FUNDS')
+      );
+      setCardTemplates(filteredTemplates);
+
+      const playerDeckPromise = getDeck(selectedDeckId);
+      const npcDeckPromise = fetch('/decks/npc_default_deck.json').then(res => res.json());
+
+      const [loadedPlayerDeck, loadedNpcDeck] = await Promise.all([
+        playerDeckPromise,
+        npcDeckPromise
+      ]).catch(error => {
+        console.error("InitializeGame: Failed to load decks:", error);
+        return [null, null];
+      });
 
       if (!loadedPlayerDeck || !loadedNpcDeck) {
-        console.error('Missing player or NPC deck. Cannot start game.');
+        console.error("InitializeGame: A required deck is missing. Aborting.");
         setHasRequiredDecks(false);
         return;
       }
+
+      setPlayerDeck(loadedPlayerDeck);
+      setNpcDeck(loadedNpcDeck);
       setHasRequiredDecks(true);
+      console.log("InitializeGame: All data fetched and set.");
 
-      const currentMatchId = await createMatch();
-      setMatchId(currentMatchId);
+      // 3. Launch Phaser
+      if (phaserContainerRef.current && !gameRef.current) {
+        console.log("InitializeGame: Launching Phaser...");
+        const gameInstance = launch(phaserContainerRef.current, filteredTemplates);
+        gameRef.current = gameInstance;
+        setIsPhaserReady(true);
 
-      const unsubscribeState = watchGameState(currentMatchId, (dbGameState) => {
-        if (dbGameState) {
-          engineRef.current = new GameEngine(dbGameState, fetchedCardTemplates);
-          setGameState(dbGameState);
-          const currentPlayerState = dbGameState.players.find((p: PlayerState) => p.playerId === currentClientId);
-          if (currentPlayerState) {
-            setPlayerHand(currentPlayerState.hand);
-          }
-          if (gameRef.current && isPhaserReady) { // Add isPhaserReady check here
-            console.log('GameView: Setting lastActions to Phaser Registry:', dbGameState.lastActions);
-            gameRef.current.registry.set('lastActions', dbGameState.lastActions);
+        // 4. Setup Firebase listeners and initial state post-launch
+        const currentMatchId = await createMatch();
+        setMatchId(currentMatchId);
 
-            // Get MainGameScene instance and call displayTurnActions directly
-            const mainGameScene = gameRef.current.scene.get('MainGameScene') as MainGameScene;
-            if (mainGameScene) {
-              mainGameScene.displayTurnActions(dbGameState.lastActions);
+        gameInstance.events.on('animationComplete', async () => {
+            if (engineRef.current && currentMatchId) {
+                const currentState = engineRef.current.getState();
+                if (currentState.phase !== 'RESOLUTION' && currentState.phase !== 'GAME_OVER') return;
+                if (currentState.phase === 'GAME_OVER') {
+                    if (!isGameOverHandledRef.current) {
+                        isGameOverHandledRef.current = true;
+                        const playerState = engineRef.current.getState().players.find(p => p.playerId === currentClientId);
+                        const message = playerState && playerState.properties > 0 ? 'You Win!' : 'You Lose!';
+                        const isWin = playerState && playerState.properties > 0;
+                        gameInstance.events.emit('gameOver', message, isWin);
+                    }
+                    return;
+                }
+                const nextTurnState = engineRef.current.advanceTurn();
+                await writeState(currentMatchId, nextTurnState);
+                await set(ref(database, `matches/${currentMatchId}/actions`), {});
             }
-          }
-        }
-      });
+        });
 
-      const unsubscribeActions = watchActions(currentMatchId, async (actions) => {
-        if (isResolvingTurnRef.current) return;
-        isResolvingTurnRef.current = true;
-        try {
-          if (engineRef.current?.getState().phase === 'GAME_OVER') return;
-          const player1Action = actions[currentClientId];
-          const player2Action = actions[npcId];
-          if (!player1Action || !player2Action) return;
-          if (engineRef.current) {
-            const newGameState = engineRef.current.applyAction(player1Action, player2Action);
-            await writeState(currentMatchId, newGameState);
-          }
-        } finally {
-          isResolvingTurnRef.current = false;
-        }
-      });
+        watchActions(currentMatchId, async (actions) => {
+            if (isResolvingTurnRef.current || engineRef.current?.getState().phase === 'GAME_OVER') return;
+            const player1Action = actions[currentClientId];
+            const player2Action = actions[npcId];
+            if (!player1Action || !player2Action) return;
+            
+            isResolvingTurnRef.current = true;
+            try {
+                if (engineRef.current) {
+                    const newGameState = engineRef.current.applyAction(player1Action, player2Action);
+                    await writeState(currentMatchId, newGameState);
+                }
+            } finally {
+                isResolvingTurnRef.current = false;
+            }
+        });
 
-      return () => {
-        unsubscribeState();
-        unsubscribeActions();
-      };
+        watchGameState(currentMatchId, (dbGameState) => {
+            if (dbGameState) {
+                engineRef.current = new GameEngine(dbGameState, filteredTemplates);
+                setGameState(dbGameState);
+                const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
+                if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
+            }
+        });
+
+        // 5. Create and write initial game state
+        console.log("InitializeGame: Creating initial game state...");
+        const initialGameState = GameEngine.createInitialState(currentClientId, npcId, filteredTemplates, loadedPlayerDeck, loadedNpcDeck);
+        engineRef.current = new GameEngine(initialGameState, filteredTemplates);
+        const gameStateWithInitialHand = engineRef.current.advanceTurn();
+        await writeState(currentMatchId, gameStateWithInitialHand);
+        setGameStarted(true); // Explicitly set game as started
+        console.log("InitializeGame: Initial game state written to DB and game started.");
+      }
     };
 
-    console.log('Checking if selectedDeckId exists...');
-    if (selectedDeckId) {
-      console.log('Condition met. Calling setupMatch().');
-      setupMatch();
-    }
-  }, [selectedDeckId]);
-
-  useEffect(() => {
-    if (phaserContainerRef.current && !gameRef.current) {
-      const gameInstance = launch(phaserContainerRef.current);
-      gameRef.current = gameInstance;
-      setIsPhaserReady(true);
-
-      gameInstance.events.on('startGame', async () => {
-        console.log('Phaser event: startGame received.');
-        setGameStarted(true);
-
-        console.log('Preparing to create initial game state...', { clientId, opponentId, playerDeck, npcDeck });
-        if (clientId && opponentId && Object.keys(cardTemplates).length > 0 && playerDeck && npcDeck) {
-          const initialGameState = GameEngine.createInitialState(clientId, opponentId, cardTemplates, playerDeck, npcDeck);
-          console.log('Initial game state created:', JSON.parse(JSON.stringify(initialGameState)));
-          
-          engineRef.current = new GameEngine(initialGameState, cardTemplates);
-          
-          const gameStateWithInitialHand = engineRef.current.advanceTurn();
-          console.log('Game state after advancing first turn (hands dealt):', JSON.parse(JSON.stringify(gameStateWithInitialHand)));
-
-          if (matchId) {
-            await writeState(matchId, gameStateWithInitialHand);
-            console.log('Initial game state written to DB.');
-          }
-        } else {
-          console.error('Cannot start game: Missing critical data.', {
-            clientId: !!clientId,
-            opponentId: !!opponentId,
-            cardTemplates: Object.keys(cardTemplates).length > 0,
-            playerDeck: !!playerDeck,
-            npcDeck: !!npcDeck,
-          });
-        }
-      });
-    }
+    initializeGame();
 
     return () => {
       if (gameRef.current && gameRef.current.isBooted) {
+        console.log("GameView Cleanup: Destroying Phaser game instance.");
         gameRef.current.destroy(true);
         gameRef.current = null;
       }
     };
-  }, [clientId, opponentId, cardTemplates, matchId, hasRequiredDecks, playerDeck, npcDeck]);
-
-  useEffect(() => {
-    if (gameRef.current && matchId) {
-      const handleAnimationComplete = async () => {
-        if (engineRef.current && matchId) {
-          const currentState = engineRef.current.getState();
-          if (currentState.phase !== 'RESOLUTION' && currentState.phase !== 'GAME_OVER') {
-            return;
-          }
-          if (currentState.phase === 'GAME_OVER') {
-            if (!isGameOverHandledRef.current) {
-              isGameOverHandledRef.current = true;
-              const playerState = engineRef.current.getState().players.find(p => p.playerId === clientId);
-              const message = playerState && playerState.properties > 0 ? 'You Win!' : 'You Lose!';
-              const isWin = playerState && playerState.properties > 0;
-              gameRef.current.events.emit('gameOver', message, isWin);
-            }
-            return;
-          }
-          const nextTurnState = engineRef.current.advanceTurn();
-          // Explicitly clear lastActions before writing to DB
-          nextTurnState.lastActions = [];
-          await writeState(matchId, nextTurnState);
-          await set(ref(database, `matches/${matchId}/actions`), {});
-        }
-      };
-      gameRef.current.events.on('animationComplete', handleAnimationComplete);
-      return () => {
-        gameRef.current?.events.off('animationComplete', handleAnimationComplete);
-      };
-    }
-  }, [gameRef.current, matchId, clientId]);
-
-  useEffect(() => {
-    if (gameRef.current && gameState && clientId) { // cardTemplates は setupMatch で設定済み
-      gameRef.current.registry.set('gameState', gameState);
-      gameRef.current.registry.set('clientId', clientId);
-    }
-  }, [gameState, clientId]);
+  }, [selectedDeckId]);
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 

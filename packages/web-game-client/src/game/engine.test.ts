@@ -95,8 +95,8 @@ describe('GameEngine (Data-Driven)', () => {
       const testEngine = new GameEngine(scenarioState, mockCardTemplates);
       const p1Action: Action = { playerId: 'p1', actionType: 'play_card', cardId: 'ACQUIRE-1' };
       const finalState = testEngine.applyAction(p1Action, null);
-      expect(finalState.players[0].properties).toBe(1);
-      expect(finalState.players[1].properties).toBe(1);
+      expect(finalState.players[0].properties).toBe(2);
+      expect(finalState.players[1].properties).toBe(0);
     });
 
     it('ACQUIRE vs DEFEND: should be cancelled', () => {
