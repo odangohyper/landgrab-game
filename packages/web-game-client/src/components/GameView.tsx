@@ -142,23 +142,23 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
                 gameRef.current?.registry.set('lastActions', dbGameState.lastActions);
             }
 
-            // Only advance turn if the state has just been resolved
+            // Check for game over first, before acquiring lock for turn advancement
+            if (dbGameState.phase === 'GAME_OVER') {
+                if (!isGameOverHandledRef.current) {
+                    isGameOverHandledRef.current = true;
+                    const playerState = dbGameState.players.find(p => p.playerId === clientId);
+                    const message = playerState && playerState.properties > 0 ? 'You Win!' : 'You Lose!';
+                    const isWin = playerState && playerState.properties > 0;
+                    gameRef.current?.events.emit('gameOver', message, isWin);
+                }
+                // Ensure no further turn advancement happens if game is over
+                isAdvancingTurnRef.current = false; 
+                return;
+            }
+
             // Only advance turn if the state has just been resolved and not already advancing
             if (dbGameState.phase === 'RESOLUTION' && !isAdvancingTurnRef.current) {
                 isAdvancingTurnRef.current = true; // Acquire lock
-
-                // Check for game over before advancing
-                if (dbGameState.phase === 'GAME_OVER') {
-                    if (!isGameOverHandledRef.current) {
-                        isGameOverHandledRef.current = true;
-                        const playerState = dbGameState.players.find(p => p.playerId === clientId);
-                        const message = playerState && playerState.properties > 0 ? 'You Win!' : 'You Lose!';
-                        const isWin = playerState && playerState.properties > 0;
-                        gameRef.current?.events.emit('gameOver', message, isWin);
-                    }
-                    isAdvancingTurnRef.current = false; // Release lock
-                    return;
-                }
 
                 // Wait a bit for the resolution animation to be noticeable
                 setTimeout(async () => {
