@@ -97,6 +97,7 @@ export class GameEngine {
       players: [createPlayer(player1Id, player1Deck), createPlayer(player2Id, player2Deck)],
       phase: 'DRAW',
       lastActions: [],
+      result: 'IN_PROGRESS',
       log: ['ゲーム開始！'],
     };
   }
@@ -332,10 +333,13 @@ export class GameEngine {
     if (p1Lost || p2Lost) {
       state.phase = 'GAME_OVER';
       if (p1Lost && p2Lost) {
+        state.result = 'DRAW';
         state.log.push('両者、同時に不動産をすべて失った！引き分け！');
       } else if (p1Lost) {
+        state.result = 'LOSE';
         state.log.push(`プレイヤーの不動産が0になった！対戦相手の勝利！`);
-      } else {
+      } else { // p2Lost
+        state.result = 'WIN';
         state.log.push(`対戦相手の不動産が0になった！プレイヤーの勝利！`);
       }
     }

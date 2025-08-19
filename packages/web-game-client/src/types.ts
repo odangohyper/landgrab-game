@@ -16,13 +16,16 @@ export interface PlayerState {
   discard: Card[];
 }
 
+export type GameResult = 'WIN' | 'LOSE' | 'DRAW' | 'IN_PROGRESS';
+
 export interface GameState {
   matchId: string;
   turn: number;
   players: PlayerState[];
   phase: 'DRAW' | 'ACTION' | 'RESOLUTION' | 'GAME_OVER';
+  result: GameResult;
   lastActions: ResolvedAction[];
-  log: string[];
+  log:string[];
 }
 
 // --- Action Interfaces ---

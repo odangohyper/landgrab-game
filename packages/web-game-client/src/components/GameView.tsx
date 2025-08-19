@@ -163,29 +163,25 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             if (dbGameState.phase === 'GAME_OVER') {
                 if (!isGameOverHandledRef.current) {
                     isGameOverHandledRef.current = true;
-                    const playerState = dbGameState.players.find(p => p.playerId === clientId);
-                    const opponentState = dbGameState.players.find(p => p.playerId === opponentId);
 
                     let message: string;
-                    let isWin: boolean;
+                    let isWin: boolean = false; // デフォルトは勝利ではない
 
-                    if (playerState && opponentState) {
-                        const p1Lost = playerState.properties <= 0;
-                        const p2Lost = opponentState.properties <= 0;
-
-                        if (p1Lost && p2Lost) {
-                            message = 'Draw!'; // 引き分け
-                            isWin = false; // 引き分けは勝利ではない
-                        } else if (p1Lost) {
-                            message = 'You Lose!'; // プレイヤーの敗北
-                            isWin = false;
-                        } else { // p2Lost の場合
-                            message = 'You Win!'; // プレイヤーの勝利
+                    // GameEngineの判定結果を直接使用する
+                    switch (dbGameState.result) {
+                        case 'WIN':
+                            message = 'You Win!';
                             isWin = true;
-                        }
-                    } else {
-                        message = 'Game Over (Unknown Result)';
-                        isWin = false;
+                            break;
+                        case 'LOSE':
+                            message = 'You Lose!';
+                            break;
+                        case 'DRAW':
+                            message = 'Draw!';
+                            break;
+                        default: // 'IN_PROGRESS' or unexpected
+                            message = 'Game Over (Unknown Result)';
+                            break;
                     }
                     
                     gameRef.current?.events.emit('gameOver', message, isWin);
