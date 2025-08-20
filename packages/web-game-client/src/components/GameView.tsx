@@ -6,7 +6,7 @@ import HandView from './HandView';
 import DeckInfo from './DeckInfo';
 import Modal from './Modal';
 import { launch } from '../game/PhaserGame';
-import { createMatch, watchActions, writeState, watchGameState, fetchCardTemplates } from '../api/realtimeClient';
+import { createMatch, writeState, watchMatchData, fetchCardTemplates } from '../api/realtimeClient';
 import { NullAuthAdapter } from '../auth/NullAuthAdapter';
 import { database } from '../firebaseConfig';
 import { ref, set } from 'firebase/database';
@@ -18,14 +18,12 @@ interface GameViewProps {
   selectedDeckId: string | null;
 }
 
-const MAX_STACK_IMAGES = 6; // 表示する画像の最大枚数
-const STACK_OFFSET_X = 2;   // X軸のずれ量 (px)
-const STACK_OFFSET_Y = 2;   // Y軸のずれ量 (px)
+const MAX_STACK_IMAGES = 6;
+const STACK_OFFSET_X = 2;
+const STACK_OFFSET_Y = 2;
 
 const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [playerDeck, setPlayerDeck] = useState<Deck | null>(null); // State for player's deck
-  const [npcDeck, setNpcDeck] = useState<Deck | null>(null); // State for NPC's deck
   const [playerHand, setPlayerHand] = useState<Card[]>([]);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
@@ -35,44 +33,35 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   const [isPhaserReady, setIsPhaserReady] = useState<boolean>(false);
   const [hasRequiredDecks, setHasRequiredDecks] = useState<boolean>(false);
 
-  // Modal state
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTitle, setModalTitle] = useState<string>('');
   const [modalContent, setModalContent] = useState<'deck' | 'discard' | null>(null);
 
-  const engineRef = useRef<GameEngine | null>(null);
   const phaserContainerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
+  const engineRef = useRef<GameEngine | null>(null);
   const isResolvingTurnRef = useRef(false);
-  const isAdvancingTurnRef = useRef(false); // Add this line
-  const isGameOverHandledRef = useRef(false);
 
   useEffect(() => {
     const initializeGame = async () => {
       console.log("InitializeGame: Starting...");
 
-      // 1. Auth
       const authAdapter = new NullAuthAdapter();
       const currentClientId = authAdapter.getClientId();
       setClientId(currentClientId);
       const npcId = 'npc-player-id';
       setOpponentId(npcId);
-      console.log(`InitializeGame: ClientID: ${currentClientId}, OpponentID: ${npcId}`);
 
       if (!selectedDeckId) {
-        console.warn('InitializeGame: No deck selected. Aborting.');
+        console.warn('InitializeGame: No deck selected.');
         setHasRequiredDecks(false);
-        setIsPhaserReady(true); // Allow showing the "select deck" message
+        setIsPhaserReady(true);
         return;
       }
 
-      // 2. Fetch all required data
       console.log("InitializeGame: Fetching required data...");
-      const fetchedCardTemplates = await fetchCardTemplates('v1');
-      const filteredTemplates = Object.fromEntries(
-        Object.entries(fetchedCardTemplates).filter(([, template]) => template.templateId !== 'GAIN_FUNDS')
-      );
-      setCardTemplates(filteredTemplates);
+      const fetchedCardTemplates = await fetchCardTemplates();
+      setCardTemplates(fetchedCardTemplates);
 
       const playerDeckPromise = getDeck(selectedDeckId);
       const npcDeckPromise = fetch('/decks/npc_default_deck.json').then(res => res.json());
@@ -90,132 +79,92 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
         setHasRequiredDecks(false);
         return;
       }
-
-      setPlayerDeck(loadedPlayerDeck);
-      setNpcDeck(loadedNpcDeck);
       setHasRequiredDecks(true);
       console.log("InitializeGame: All data fetched and set.");
 
-      // 3. Launch Phaser
       if (phaserContainerRef.current && !gameRef.current) {
         console.log("InitializeGame: Launching Phaser...");
-        const gameInstance = launch(phaserContainerRef.current, filteredTemplates);
+        const gameInstance = launch(phaserContainerRef.current, fetchedCardTemplates);
         gameRef.current = gameInstance;
         setIsPhaserReady(true);
-
-        // Set clientId in Phaser Registry
         gameInstance.registry.set('clientId', currentClientId);
 
-        // 4. Setup Firebase listeners and initial state post-launch
         const currentMatchId = await createMatch();
         setMatchId(currentMatchId);
 
-        
+        const initialGameState = GameEngine.createInitialState(currentClientId, npcId, fetchedCardTemplates, loadedPlayerDeck, loadedNpcDeck);
+        engineRef.current = new GameEngine(initialGameState, fetchedCardTemplates);
 
-        watchActions(currentMatchId, async (actions) => {
-            if (isResolvingTurnRef.current || engineRef.current?.getState().phase === 'GAME_OVER') return;
-            const player1Action = actions[currentClientId];
-            const player2Action = actions[npcId];
-            if (!player1Action || !player2Action) return;
-            
+        watchMatchData(currentMatchId, async (data) => {
+          const { state: dbGameState, actions } = data;
+          if (!dbGameState || !engineRef.current) return;
+
+          engineRef.current.setState(dbGameState);
+          setGameState(dbGameState);
+          const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
+          if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
+
+          const playerAction = actions ? actions[currentClientId] : undefined;
+          const opponentAction = actions ? actions[npcId] : undefined;
+
+          if (playerAction && opponentAction && dbGameState.phase === 'ACTION') {
+            console.log('WATCH: Both actions found, applying...');
+            // ここで engine を生成する際に fetchedCardTemplates を使う
+            const engineForApply = new GameEngine(dbGameState, fetchedCardTemplates);
+            const newState = engineForApply.applyAction(playerAction, opponentAction);
+            await writeState(currentMatchId, newState);
+            return;
+          }
+
+          if (dbGameState.phase === 'RESOLUTION' && !isResolvingTurnRef.current) {
             isResolvingTurnRef.current = true;
-            try {
-                if (engineRef.current) {
-                    const newGameState = engineRef.current.applyAction(player1Action, player2Action);
-                    await writeState(currentMatchId, newGameState);
-                }
-            } finally {
-                isResolvingTurnRef.current = false;
+            console.log('WATCH: State is RESOLUTION, starting animation...');
+
+            console.log('GameView: dbGameState.lastActions before setting to registry:', dbGameState.lastActions);
+            gameRef.current?.registry.set('lastActions', dbGameState.lastActions);
+            // Direct call to MainGameScene's displayTurnActions
+            const mainGameScene = gameRef.current?.scene.getScene('MainGameScene') as MainGameScene;
+            if (mainGameScene) {
+              mainGameScene.displayTurnActions(dbGameState.lastActions);
             }
+
+            await new Promise<void>(resolve => gameRef.current?.events.once('animationComplete', () => resolve()));
+            console.log('WATCH: Animation complete.');
+
+            if (dbGameState.result !== 'IN_PROGRESS') {
+              console.log('WATCH: Game is over, displaying result.');
+              let message: string;
+              let isWin: boolean = false;
+              const playerIsP1 = dbGameState.players[0].playerId === currentClientId;
+              const result = playerIsP1 ? dbGameState.result : 
+                             dbGameState.result === 'WIN' ? 'LOSE' : 
+                             dbGameState.result === 'LOSE' ? 'WIN' : 'DRAW';
+
+              switch (result) {
+                case 'WIN': message = 'You Win!'; isWin = true; break;
+                case 'LOSE': message = 'You Lose!'; break;
+                case 'DRAW': message = 'Draw!'; break;
+                default: message = 'Game Over (Unknown Result)'; break;
+              }
+              gameRef.current?.events.emit('gameOver', message, isWin);
+            } else {
+              console.log('WATCH: Game not over, advancing turn.');
+              // ここで engine を生成する際に fetchedCardTemplates を使う
+              const engineForAdvance = new GameEngine(dbGameState, fetchedCardTemplates);
+              const nextTurnState = engineForAdvance.advanceTurn();
+              await writeState(currentMatchId, nextTurnState);
+              await set(ref(database, `matches/${currentMatchId}/actions`), {});
+            }
+
+            isResolvingTurnRef.current = false;
+            return;
+          }
         });
 
-        watchGameState(currentMatchId, async (dbGameState) => {
-            if (!dbGameState || !engineRef.current || !currentMatchId) return;
-
-            const currentPhase = engineRef.current.getState().phase;
-            engineRef.current = new GameEngine(dbGameState, filteredTemplates);
-            setGameState(dbGameState);
-            // Firebaseから取得したplayersがオブジェクトの場合に配列に変換する
-            if (dbGameState.players && typeof dbGameState.players === 'object' && !Array.isArray(dbGameState.players)) {
-                dbGameState.players = Object.values(dbGameState.players);
-            }
-            const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
-            if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
-            // DEBUG LOGS
-            console.log('DEBUG: dbGameState.players:', dbGameState.players);
-            dbGameState.players.forEach((p, index) => {
-                console.log(`DEBUG: dbGameState.players[${index}].playerId:`, p.playerId);
-            });
-            console.log('DEBUG: clientId:', clientId);
-            console.log('DEBUG: opponentId:', opponentId);
-
-            const playerState = dbGameState.players.find(p => p.playerId === clientId);
-            const opponentState = dbGameState.players.find(p => p.playerId === opponentId);
-
-            console.log('DEBUG: playerState:', playerState);
-            console.log('DEBUG: opponentState:', opponentState);
-            // Pass lastActions to Phaser Registry for animation
-            if (dbGameState.lastActions) {
-                gameRef.current?.registry.set('lastActions', dbGameState.lastActions);
-            }
-
-            // Check for game over first, before acquiring lock for turn advancement
-            if (dbGameState.phase === 'GAME_OVER') {
-                if (!isGameOverHandledRef.current) {
-                    isGameOverHandledRef.current = true;
-
-                    let message: string;
-                    let isWin: boolean = false; // デフォルトは勝利ではない
-
-                    // GameEngineの判定結果を直接使用する
-                    switch (dbGameState.result) {
-                        case 'WIN':
-                            message = 'You Win!';
-                            isWin = true;
-                            break;
-                        case 'LOSE':
-                            message = 'You Lose!';
-                            break;
-                        case 'DRAW':
-                            message = 'Draw!';
-                            break;
-                        default: // 'IN_PROGRESS' or unexpected
-                            message = 'Game Over (Unknown Result)';
-                            break;
-                    }
-                    
-                    gameRef.current?.events.emit('gameOver', message, isWin);
-                }
-                // Ensure no further turn advancement happens if game is over
-                isAdvancingTurnRef.current = false; 
-                return;
-            }
-
-            // Only advance turn if the state has just been resolved and not already advancing
-            if (dbGameState.phase === 'RESOLUTION' && !isAdvancingTurnRef.current) {
-                isAdvancingTurnRef.current = true; // Acquire lock
-
-                // Wait a bit for the resolution animation to be noticeable
-                setTimeout(async () => {
-                    try {
-                        const nextTurnState = engineRef.current.advanceTurn();
-                        await writeState(currentMatchId, nextTurnState);
-                        // Clear actions for the new turn
-                        await set(ref(database, `matches/${currentMatchId}/actions`), {});
-                    } finally {
-                        isAdvancingTurnRef.current = false; // Ensure lock is released
-                    }
-                }, 1000); // 1 second delay
-            }
-        });
-
-        // 5. Create and write initial game state
-        console.log("InitializeGame: Creating initial game state...");
-        const initialGameState = GameEngine.createInitialState(currentClientId, npcId, filteredTemplates, loadedPlayerDeck, loadedNpcDeck);
-        engineRef.current = new GameEngine(initialGameState, filteredTemplates);
+        console.log("InitializeGame: Writing initial state...");
         const gameStateWithInitialHand = engineRef.current.advanceTurn();
         await writeState(currentMatchId, gameStateWithInitialHand);
-        setGameStarted(true); // Explicitly set game as started
+        setGameStarted(true);
         console.log("InitializeGame: Initial game state written to DB and game started.");
       }
     };
@@ -239,43 +188,38 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
     } else if (action.actionType === 'play_card') {
       setSelectedCardId(action.cardId || null);
     } else if (action.actionType === 'collect_funds') {
-      setSelectedCardId('COLLECT_FUNDS_COMMAND');
+      setSelectedCardId('COLLECT_FUNDS');
     }
   };
 
   const handlePlayTurn = async () => {
-    if (gameState?.phase === 'GAME_OVER' || !engineRef.current || !gameState || !matchId || !clientId || !opponentId) return;
+    if (gameState?.phase !== 'ACTION' || !matchId || !clientId || !opponentId) return;
 
-    // 1. Determine Player's Action
     let player1Action: Action | null = null;
     if (selectedCardId) {
-      if (selectedCardId === 'COLLECT_FUNDS_COMMAND') {
-        player1Action = { playerId: clientId, actionType: 'collect_funds' };
+      if (selectedCardId === 'COLLECT_FUNDS') {
+        player1Action = { playerId: clientId, actionType: 'collect_funds', cardId: 'COLLECT_FUNDS' };
       } else {
         player1Action = { playerId: clientId, actionType: 'play_card', cardId: selectedCardId };
       }
     }
 
-    // If player has not selected an action, do nothing.
     if (!player1Action) {
         console.warn('handlePlayTurn: Player action is null, aborting.');
         return;
     }
 
-    // 2. Determine NPC's Action
     const npcPlayerState = gameState.players.find(p => p.playerId === opponentId);
     let player2Action: Action | null = null;
-    if (npcPlayerState) {
+    if (npcPlayerState && gameState) {
       player2Action = choose_card(gameState, npcPlayerState.hand, Date.now(), cardTemplates);
     }
 
-    // Fallback for NPC: If AI returns no action, default to collecting funds.
     if (!player2Action) {
         console.log('NPC action was null, defaulting to collect_funds.');
-        player2Action = { playerId: opponentId, actionType: 'collect_funds' };
+        player2Action = { playerId: opponentId!, actionType: 'collect_funds', cardId: 'COLLECT_FUNDS' };
     }
 
-    // 3. Submit both actions to the database
     const actionsToSubmit: { [key: string]: Action } = {
       [clientId]: player1Action,
       [opponentId]: player2Action,
@@ -283,13 +227,12 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
 
     await set(ref(database, `matches/${matchId}/actions`), actionsToSubmit);
     setSelectedCardId(null);
-    isAdvancingTurnRef.current = false; // Reset the flag when a new turn is initiated
   };
 
   const currentPlayerState = gameState?.players.find(p => p.playerId === clientId);
   const opponentState = gameState?.players.find(p => p.playerId === opponentId);
-  const playableCardIds = currentPlayerState && engineRef.current
-    ? engineRef.current.getPlayableCards(currentPlayerState).map(card => card.id)
+  const playableCardIds = currentPlayerState && gameState && cardTemplates
+    ? new GameEngine(gameState, cardTemplates).getPlayableCards(currentPlayerState).map(card => card.id)
     : [];
 
   const logsToRender = (() => {
@@ -420,9 +363,9 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             <div className="action-bar">
               <div
                 id="gain-funds-button"
-                className={`action-card-item ${selectedCardId === 'COLLECT_FUNDS_COMMAND' ? 'selected' : ''}`}
+                className={`action-card-item ${selectedCardId === 'GAIN_FUNDS' ? 'selected' : ''}`}
                 onClick={() => {
-                  if (selectedCardId === 'COLLECT_FUNDS_COMMAND') {
+                  if (selectedCardId === 'GAIN_FUNDS') {
                     handleCardSelect(null);
                   } else {
                     handleCardSelect({ playerId: clientId, actionType: 'collect_funds' });
@@ -431,7 +374,7 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
               >
                 <p className="action-card-name">資金集め</p>
               </div>
-              <button onClick={handlePlayTurn} disabled={!selectedCardId || gameState.phase === 'GAME_OVER'} className="play-button">
+              <button onClick={handlePlayTurn} disabled={!selectedCardId || (gameState?.phase !== 'ACTION')} className="play-button">
                 Play Turn
               </button>
             </div>

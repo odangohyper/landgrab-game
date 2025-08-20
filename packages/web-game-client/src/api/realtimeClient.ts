@@ -50,15 +50,15 @@ export async function putAction(matchId: string, playerId: string, action: Actio
  * @param callback アクションが更新されたときに呼び出されるコールバック関数
  * @returns 監視を停止するためのアンサブスクライブ関数
  */
-export function watchActions(matchId: string, callback: (actions: { [playerId: string]: Action }) => void): () => void {
-  const actionsRef = ref(database, `matches/${matchId}/actions`);
-  const listener = onValue(actionsRef, (snapshot: DataSnapshot) => {
-    const actions = snapshot.val() || {};
-    callback(actions);
-  });
-  console.log(`Watching actions for match ${matchId}.`);
-  return () => off(actionsRef, 'value', listener); // アンサブスクライブ関数
-}
+// export function watchActions(matchId: string, callback: (actions: { [playerId: string]: Action }) => void): () => void {
+//   const actionsRef = ref(database, `matches/${matchId}/actions`);
+//   const listener = onValue(actionsRef, (snapshot: DataSnapshot) => {
+//     const actions = snapshot.val() || {};
+//     callback(actions);
+//   });
+//   console.log(`Watching actions for match ${matchId}.`);
+//   return () => off(actionsRef, 'value', listener); // アンサブスクライブ関数
+// }
 
 /**
  * Realtime Database上のゲームの状態を更新します。
@@ -72,21 +72,24 @@ export async function writeState(matchId: string, gameState: GameState): Promise
 }
 
 /**
- * Realtime Database上のゲームの状態を監視します。
+ * Realtime Database上の特定のマッチの全体データ（stateとactions）を監視します。
  * @param matchId マッチID
- * @param callback ゲームの状態が更新されたときに呼び出されるコールバック関数
+ * @param callback データが更新されたときに呼び出されるコールバック関数
  * @returns 監視を停止するためのアンサブスクライブ関数
  */
-export function watchGameState(matchId: string, callback: (gameState: GameState) => void): () => void {
-  const stateRef = ref(database, `matches/${matchId}/state`);
-  const listener = onValue(stateRef, (snapshot: DataSnapshot) => {
-    const gameState = snapshot.val();
-    if (gameState) {
-      callback(gameState);
+export function watchMatchData(matchId: string, callback: (data: { state: GameState, actions: { [playerId: string]: Action } }) => void): () => void {
+  const matchRef = ref(database, `matches/${matchId}`);
+  const listener = onValue(matchRef, (snapshot: DataSnapshot) => {
+    const matchData = snapshot.val();
+    if (matchData && matchData.state) { // stateが存在することを確認
+      callback({
+        state: matchData.state,
+        actions: matchData.actions || {}
+      });
     }
   });
-  console.log(`Watching game state for match ${matchId}.`);
-  return () => off(stateRef, 'value', listener); // アンサブスクライブ関数
+  console.log(`Watching all data for match ${matchId}.`);
+  return () => off(matchRef, 'value', listener);
 }
 
 /**

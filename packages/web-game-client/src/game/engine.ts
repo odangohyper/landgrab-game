@@ -18,18 +18,26 @@ export class GameEngine {
   private cardTemplates: { [key: string]: CardTemplate };
 
   constructor(initialState: GameState, cardTemplates: { [key: string]: CardTemplate }) {
+    if (!cardTemplates || Object.keys(cardTemplates).length === 0) {
+      console.error("GameEngine: cardTemplates is empty or undefined.", cardTemplates);
+      throw new Error("GameEngine must be initialized with valid cardTemplates.");
+    }
     initialState.players.forEach(player => {
       player.hand = player.hand || [];
       player.deck = player.deck || [];
       player.discard = player.discard || [];
     });
     initialState.lastActions = initialState.lastActions || [];
-    this.state = JSON.parse(JSON.stringify(initialState)); // Deep copy to ensure immutability
+    this.state = JSON.parse(JSON.stringify(initialState));
     this.cardTemplates = cardTemplates;
   }
 
   public getState(): GameState {
     return JSON.parse(JSON.stringify(this.state));
+  }
+
+  public setState(newState: GameState): void {
+    this.state = JSON.parse(JSON.stringify(newState));
   }
 
   public applyAction(player1Action: Action | null, player2Action: Action | null): GameState {
@@ -120,41 +128,43 @@ export class GameEngine {
     console.log('resolveActions: p1Action:', p1Action, 'p2Action:', p2Action);
 
     mutableState.phase = 'RESOLUTION';
-    const resolvedActions: ResolvedAction[] = [];
+    const resolvedActions: ResolvedAction[] = []; // This will store all resolved actions for the turn
 
-    // 1. Prepare data
+    // 1. Prepare data (EffectContext for each player's action)
     const p1 = mutableState.players.find(p => p.playerId === p1Action?.playerId);
     const p2 = mutableState.players.find(p => p.playerId === p2Action?.playerId);
 
     const getEffectContext = (player: PlayerState | undefined, action: Action | null, opponent: PlayerState | undefined): EffectContext | null => {
-      if (!action || !player) return null; // action または player が undefined の場合は null を返す
+      if (!action || !player) return null;
 
-      // COLLECT_FUNDS コマンドの場合
+      let cardInstance: Card | undefined;
+      let template: CardTemplate | undefined;
+
       if (action.actionType === 'collect_funds') {
-        const collectFundsEffectAction: EffectAction = {
-          name: 'GAIN_FUNDS',
-          value: 1
-        };
-        // COLLECT_FUNDS は SELF ターゲットなので opponent は不要
-        return { player, opponent: opponent || player, card: this.cardTemplates['COLLECT_FUNDS'], isCancelled: false, effectAction: collectFundsEffectAction }; // opponent が undefined の場合は player を設定
-      }
-
-      const cardInstance = player.hand.find(c => c.id === action.cardId);
-      if (!cardInstance) {
-        console.warn(`resolveActions: Card instance ${action.cardId} not found in player ${player.playerId}'s hand.`);
-        return null;
-      }
-      const template = this.cardTemplates[cardInstance.templateId];
-      if (!template) {
-        console.warn(`resolveActions: Card template ${cardInstance.templateId} not found.`);
-        return null;
+        template = this.cardTemplates['COLLECT_FUNDS'];
+        if (!template) {
+          console.warn(`getEffectContext: Card template for COLLECT_FUNDS not found.`);
+          return null;
+        }
+        cardInstance = { id: 'COLLECT_FUNDS_COMMAND', templateId: 'COLLECT_FUNDS' };
+      } else {
+        cardInstance = player.hand.find(c => c.id === action.cardId);
+        if (!cardInstance) {
+          console.warn(`getEffectContext: Card instance ${action.cardId} not found in player ${player.playerId}'s hand.`);
+          return null;
+        }
+        template = this.cardTemplates[cardInstance.templateId];
+        if (!template) {
+          console.warn(`getEffectContext: Card template ${cardInstance.templateId} not found.`);
+          return null;
+        }
       }
 
       if (player.funds < template.cost) {
-        console.warn(`resolveActions: Player ${player.playerId} cannot afford card ${template.name}.`);
-        return null; // Cannot afford
+        console.warn(`getEffectContext: Player ${player.playerId} cannot afford card ${template.name}.`);
+        return null;
       }
-      // opponentが未定義でもコンテキストは作成し、effect適用時にチェックする
+      
       return { player, opponent: opponent || player, card: template, isCancelled: false };
     };
 
@@ -164,37 +174,22 @@ export class GameEngine {
     console.log('resolveActions: p1Context:', JSON.parse(JSON.stringify(p1Context)));
     console.log('resolveActions: p2Context:', JSON.parse(JSON.stringify(p2Context)));
 
-    // Pay costs and move cards to discard
+    // Pay costs and move cards to discard (for cards that are not GAIN_FUNDS command)
     [p1Context, p2Context].forEach(context => {
-      if (context && context.card.templateId !== 'COLLECT_FUNDS') {
+      if (context && context.card.templateId !== 'COLLECT_FUNDS') { // <-- Change 'GAIN_FUNDS' to 'COLLECT_FUNDS'
         context.player.funds -= context.card.cost;
-        const cardInstance = context.player.hand.find(c => c.templateId === context.card.templateId)!;
-        context.player.hand = context.player.hand.filter(c => c.id !== cardInstance.id);
-        context.player.discard.push(cardInstance);
-        resolvedActions.push({ playerId: context.player.playerId, cardTemplateId: context.card.templateId });
-        mutableState.log.push(`${context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${context.card.name}」`);
-      }
-    });
-
-    // Add COLLECT_FUNDS actions to resolvedActions
-    if (p1Context && p1Context.card.templateId === 'COLLECT_FUNDS') {
-      resolvedActions.push({ playerId: p1Context.player.playerId, cardTemplateId: p1Context.card.templateId });
-      mutableState.log.push(`${p1Context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}は資金集めを行った！`);
-    }
-    if (p2Context && p2Context.card.templateId === 'COLLECT_FUNDS') {
-      resolvedActions.push({ playerId: p2Context.player.playerId, cardTemplateId: p2Context.card.templateId });
-      mutableState.log.push(`${p2Context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}は資金集めを行った！`);
-    }
+        const cardInstance = context.player.hand.find(c => c.templateId === context.card.templateId);
+        if (cardInstance) { // Add a check for cardInstance existence
+          context.player.hand = context.player.hand.filter(c => c.id !== cardInstance.id);
+          context.player.discard.push(cardInstance);
+        } else {
+          console.warn(`resolveActions: Card instance for template ${context.card.templateId} not found in hand for player ${context.player.playerId}.`);
+        }
+    }})
 
     // 2. Determine interaction (cancellation)
-    const currentTurnResolvedActions: ResolvedAction[] = [];
-    if (p1Context && p1Context.card.templateId !== 'COLLECT_FUNDS') {
-        currentTurnResolvedActions.push({ playerId: p1Context.player.playerId, cardTemplateId: p1Context.card.templateId });
-    }
-    if (p2Context && p2Context.card.templateId !== 'COLLECT_FUNDS') {
-        currentTurnResolvedActions.push({ playerId: p2Context.player.playerId, cardTemplateId: p2Context.card.templateId });
-    }
-
+    // This section handles card interactions like DEFEND, FRAUD, ACQUIRE, BRIBE
+    // It modifies the `isCancelled` property of the contexts.
     if (p1Context && p2Context) {
         // FRAUD vs ACQUIRE: FRAUD cancels ACQUIRE and steals property
         if (p1Context.card.templateId === 'FRAUD' && p2Context.card.templateId === 'ACQUIRE') {
@@ -218,45 +213,27 @@ export class GameEngine {
     }
 
     // 3. Apply effects in order of priority
-    const contexts = [p1Context, p2Context].filter(c => c !== null) as EffectContext[];
-    contexts.sort((a, b) => b.card.effect.priority - a.card.effect.priority);
+    const contextsToApply = [p1Context, p2Context].filter(c => c !== null && !c.isCancelled) as EffectContext[];
+    contextsToApply.sort((a, b) => b.card.effect.priority - a.card.effect.priority);
 
-    console.log('resolveActions: Sorted contexts for effect application:', JSON.parse(JSON.stringify(contexts)));
+    console.log('resolveActions: Sorted contexts for effect application:', JSON.parse(JSON.stringify(contextsToApply)));
 
-    for (const context of contexts) {
-      console.log(`resolveActions: Applying effect for ${context.player.playerId}'s ${context.card.name}. isCancelled: ${context.isCancelled}`);
-      if (context.isCancelled) {
-        mutableState.log.push(`${context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}の「${context.card.name}」は無効化された！`);
-        continue;
-      }
+    const currentTurnResolvedActions: ResolvedAction[] = []; // This is the correct declaration
 
-      const actionsToApply = context.effectAction ? [context.effectAction] : context.card.effect.actions;
-      for (const effectAction of actionsToApply) {
-        if (effectAction.conditions) {
-          const opponentPlayer = context.player.playerId === mutableState.players[0].playerId ? mutableState.players[1] : mutableState.players[0];
-          const conditionsMet = this.checkConditions(mutableState, context.player, opponentPlayer, context.card, effectAction.conditions, currentTurnResolvedActions);
-          if (!conditionsMet) {
-            console.log(`resolveActions: Conditions not met for action ${effectAction.name} of ${context.card.name}. Skipping.`);
-            continue;
-          }
-        }
-
-        // For opponent-targeted effects, ensure the opponent exists.
-        if (context.card.effect.target === 'OPPONENT' && !context.opponent) {
-          console.warn(`Action ${effectAction.name} for ${context.card.name} requires an opponent, but none was provided.`);
-          continue;
-        }
-
-        console.log(`resolveActions: Applying action ${effectAction.name} for ${context.player.playerId}. Current state before applyEffect:`, JSON.parse(JSON.stringify(mutableState)));
-        // applyEffectから返された新しい状態をmutableStateに再代入する
-        // opponentPlayerIdを正しく解決する
-        const opponentPlayerId = context.player.playerId === p1?.playerId ? p2?.playerId : p1?.playerId;
-        mutableState = this.applyEffect(mutableState, context.player.playerId, opponentPlayerId, effectAction);
-        console.log(`resolveActions: State after applyEffect:`, JSON.parse(JSON.stringify(mutableState)));
-      }
+    for (const context of contextsToApply) {
+      // Apply the effect
+      mutableState = this.applyEffect(mutableState, context.player.playerId, context.opponent.playerId, context.card.effect);
+      
+      // Log the action
+      const actionName = context.card.templateId === 'GAIN_FUNDS' ? '資金集め' : context.card.name;
+      mutableState.log.push(`${context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${actionName}」`);
+      
+      currentTurnResolvedActions.push({ playerId: context.player.playerId, cardTemplateId: context.card.templateId });
     }
-    
-    mutableState.lastActions = resolvedActions;
+
+    mutableState.lastActions = currentTurnResolvedActions; // Store resolved actions for the turn
+
+    console.log('resolveActions: Final state after actions:', JSON.parse(JSON.stringify(mutableState)));
     return mutableState;
   }
 
@@ -264,60 +241,56 @@ export class GameEngine {
     console.log(`checkConditions: Checking conditions for ${card.name}. Conditions:`, conditions);
     console.log(`checkConditions: Current turn resolved actions:`, JSON.parse(JSON.stringify(currentTurnResolvedActions)));
 
-    if (conditions.opponentCardTemplateId) {
-      const opponentPlayedCard = currentTurnResolvedActions.find(a => a.playerId === opponent.playerId);
-      console.log(`checkConditions: opponentPlayedCard (by templateId):`, opponentPlayedCard);
-      if (!opponentPlayedCard) {
-        console.log(`checkConditions: Condition opponentCardTemplateId not met (no opponent card played this turn).`);
-        return false;
-      }
-      if (opponentPlayedCard.cardTemplateId !== conditions.opponentCardTemplateId) {
-        console.log(`checkConditions: Condition opponentCardTemplateId not met (templateId mismatch). Expected: ${conditions.opponentCardTemplateId}, Actual: ${opponentPlayedCard.cardTemplateId}`);
+    if (conditions.hasFunds) {
+      if (player.funds < conditions.hasFunds) {
+        console.log(`checkConditions: Player ${player.id} does not have enough funds. Required: ${conditions.hasFunds}, Actual: ${player.funds}`);
         return false;
       }
     }
 
-    if (conditions.opponentCardCategory) {
-      const opponentPlayedCard = currentTurnResolvedActions.find(a => a.playerId === opponent.playerId);
-      console.log(`checkConditions: opponentPlayedCard (by category):`, opponentPlayedCard);
-      if (!opponentPlayedCard) {
-        console.log(`checkConditions: Condition opponentCardCategory not met (no opponent card played this turn).`);
-        return false;
-      }
-      const opponentCardTemplate = this.getCardTemplate(opponentPlayedCard.cardTemplateId);
-      if (!opponentCardTemplate) {
-        console.log(`checkConditions: Condition opponentCardCategory not met (opponent card template not found).`);
-        return false;
-      }
-      if (opponentCardTemplate.effect.category !== conditions.opponentCardCategory) {
-        console.log(`checkConditions: Condition opponentCardCategory not met (category mismatch). Expected: ${conditions.opponentCardCategory}, Actual: ${opponentCardTemplate.effect.category}`);
+    if (conditions.opponentPlayedCard) {
+      const opponentPlayedCardId = currentTurnResolvedActions.find(
+        (action) => action.playerId === opponent.id
+      )?.cardId;
+      if (opponentPlayedCardId !== conditions.opponentPlayedCard) {
+        console.log(`checkConditions: Opponent did not play the required card. Expected: ${conditions.opponentPlayedCard}, Actual: ${opponentPlayedCardId}`);
         return false;
       }
     }
 
-    console.log(`checkConditions: All checked conditions met for ${card.name}.`);
-    return true; // All checked conditions met
+    if (conditions.opponentHasProperty) {
+      if (opponent.properties < conditions.opponentHasProperty) {
+        console.log(`checkConditions: Opponent does not have enough properties. Required: ${conditions.opponentHasProperty}, Actual: ${opponent.properties}`);
+        return false;
+      }
+    }
+
+    console.log(`checkConditions: All conditions met for ${card.name}.`);
+    return true;
   }
 
   private applyEffect(state: GameState, actingPlayerId: string, opponentPlayerId: string | undefined, action: EffectAction): GameState {
+    console.log(`applyEffect: action.name: ${action.name}`);
     const player = state.players.find(p => p.playerId === actingPlayerId);
     if (!player) return state; // Acting player must exist
+    console.log(`applyEffect: player found: ${player.playerId}`);
 
     const opponent = opponentPlayerId ? state.players.find(p => p.playerId === opponentPlayerId) : undefined;
+    if (opponent) console.log(`applyEffect: opponent found: ${opponent.playerId}`);
 
-    switch (action.name) {
+    switch (action.actions[0].name) {
       case 'ACQUIRE_PROPERTY':
         if (!opponent) {
           console.warn(`ACQUIRE_PROPERTY requires an opponent, but opponentPlayerId was not provided.`);
           return state;
         }
-        state = acquireProperty(state, actingPlayerId, opponentPlayerId, action);
+        state = acquireProperty(state, actingPlayerId, opponentPlayerId, action.actions[0]);
         state.log.push(`${player.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}は不動産を1つ獲得した！`);
         break;
       case 'GAIN_FUNDS':
         // Opponent is not required for GAIN_FUNDS
-        state = gainFunds(state, actingPlayerId, opponentPlayerId, action);
-        state.log.push(`${player.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}は${action.value}資金を獲得した！`);
+        state = gainFunds(state, actingPlayerId, opponentPlayerId, action.actions[0]);
+        state.log.push(`${player.playerId === state.players[0].playerId ? 'プレイヤー' : '対戦相手'}は${action.actions[0].value}資金を獲得した！`);
         break;
       case 'CANCEL_EFFECT':
         // This is handled in the interaction logic before applyEffect is called.
