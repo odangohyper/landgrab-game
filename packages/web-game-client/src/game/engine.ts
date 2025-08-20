@@ -171,6 +171,16 @@ export class GameEngine {
     const p1Context = getEffectContext(p1, p1Action, p2);
     const p2Context = getEffectContext(p2, p2Action, p1);
 
+    // Record all played actions for animation purposes, regardless of cancellation.
+    const playedActions: ResolvedAction[] = [];
+    if (p1Context) {
+      playedActions.push({ playerId: p1Context.player.playerId, cardTemplateId: p1Context.card.templateId });
+    }
+    if (p2Context) {
+      playedActions.push({ playerId: p2Context.player.playerId, cardTemplateId: p2Context.card.templateId });
+    }
+    mutableState.lastActions = playedActions;
+
     console.log('resolveActions: p1Context:', JSON.parse(JSON.stringify(p1Context)));
     console.log('resolveActions: p2Context:', JSON.parse(JSON.stringify(p2Context)));
 
@@ -218,8 +228,6 @@ export class GameEngine {
 
     console.log('resolveActions: Sorted contexts for effect application:', JSON.parse(JSON.stringify(contextsToApply)));
 
-    const currentTurnResolvedActions: ResolvedAction[] = []; // This is the correct declaration
-
     for (const context of contextsToApply) {
       // Apply the effect
       mutableState = this.applyEffect(mutableState, context.player.playerId, context.opponent.playerId, context.card.effect);
@@ -228,10 +236,11 @@ export class GameEngine {
       const actionName = context.card.templateId === 'GAIN_FUNDS' ? '資金集め' : context.card.name;
       mutableState.log.push(`${context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${actionName}」`);
       
-      currentTurnResolvedActions.push({ playerId: context.player.playerId, cardTemplateId: context.card.templateId });
+      // This is no longer needed as lastActions is set before cancellation.
+      // currentTurnResolvedActions.push({ playerId: context.player.playerId, cardTemplateId: context.card.templateId });
     }
 
-    mutableState.lastActions = currentTurnResolvedActions; // Store resolved actions for the turn
+    // mutableState.lastActions = currentTurnResolvedActions; // This is moved before cancellation logic.
 
     console.log('resolveActions: Final state after actions:', JSON.parse(JSON.stringify(mutableState)));
     return mutableState;
@@ -270,13 +279,10 @@ export class GameEngine {
   }
 
   private applyEffect(state: GameState, actingPlayerId: string, opponentPlayerId: string | undefined, action: EffectAction): GameState {
-    console.log(`applyEffect: action.name: ${action.name}`);
     const player = state.players.find(p => p.playerId === actingPlayerId);
     if (!player) return state; // Acting player must exist
-    console.log(`applyEffect: player found: ${player.playerId}`);
 
     const opponent = opponentPlayerId ? state.players.find(p => p.playerId === opponentPlayerId) : undefined;
-    if (opponent) console.log(`applyEffect: opponent found: ${opponent.playerId}`);
 
     switch (action.actions[0].name) {
       case 'ACQUIRE_PROPERTY':
@@ -304,7 +310,6 @@ export class GameEngine {
     const p2Lost = state.players[1].properties <= 0;
 
     if (p1Lost || p2Lost) {
-      state.phase = 'GAME_OVER';
       if (p1Lost && p2Lost) {
         state.result = 'DRAW';
         state.log.push('両者、同時に不動産をすべて失った！引き分け！');

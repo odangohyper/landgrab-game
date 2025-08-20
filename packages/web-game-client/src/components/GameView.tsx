@@ -120,7 +120,6 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             isResolvingTurnRef.current = true;
             console.log('WATCH: State is RESOLUTION, starting animation...');
 
-            console.log('GameView: dbGameState.lastActions before setting to registry:', dbGameState.lastActions);
             gameRef.current?.registry.set('lastActions', dbGameState.lastActions);
             // Direct call to MainGameScene's displayTurnActions
             const mainGameScene = gameRef.current?.scene.getScene('MainGameScene') as MainGameScene;
@@ -152,8 +151,10 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
               // ここで engine を生成する際に fetchedCardTemplates を使う
               const engineForAdvance = new GameEngine(dbGameState, fetchedCardTemplates);
               const nextTurnState = engineForAdvance.advanceTurn();
+              // First, clear the actions to prevent re-triggering the resolution.
+              await set(ref(database, `matches/${currentMatchId}/actions`), null);
+              // Then, write the new state for the next turn.
               await writeState(currentMatchId, nextTurnState);
-              await set(ref(database, `matches/${currentMatchId}/actions`), {});
             }
 
             isResolvingTurnRef.current = false;
@@ -363,7 +364,7 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             <div className="action-bar">
               <div
                 id="gain-funds-button"
-                className={`action-card-item ${selectedCardId === 'GAIN_FUNDS' ? 'selected' : ''}`}
+                className={`action-card-item ${selectedCardId === 'COLLECT_FUNDS' ? 'selected' : ''}`}
                 onClick={() => {
                   if (selectedCardId === 'GAIN_FUNDS') {
                     handleCardSelect(null);
