@@ -11,6 +11,7 @@ interface EffectContext {
   card: CardTemplate;
   isCancelled: boolean;
   effectAction?: EffectAction; // COLLECT_FUNDS コマンド用
+  conditions?: { [key: string]: any }; // Add conditions property
 }
 
 export class GameEngine {
@@ -165,7 +166,7 @@ export class GameEngine {
         return null;
       }
       
-      return { player, opponent: opponent || player, card: template, isCancelled: false };
+      return { player, opponent: opponent || player, card: template, isCancelled: false, conditions: template.effect.conditions };
     };
 
     const p1Context = getEffectContext(p1, p1Action, p2);
@@ -222,6 +223,20 @@ export class GameEngine {
         }
     }
 
+    // Evaluate conditions for each context and set isCancelled if conditions are not met
+    [p1Context, p2Context].forEach(context => {
+      if (context && context.conditions) {
+        const player = mutableState.players.find(p => p.playerId === context.player.playerId);
+        const opponent = mutableState.players.find(p => p.playerId === context.opponent.playerId);
+        if (player && opponent) {
+          if (!this.checkConditions(mutableState, player, opponent, context.card, context.conditions, mutableState.lastActions)) {
+            context.isCancelled = true;
+            mutableState.log.push(`${context.player.playerId === mutableState.players[0].playerId ? 'プレイヤー' : '対戦相手'}の行動「${context.card.name}」は条件を満たさなかったため無効化されました。`);
+          }
+        }
+      }
+    });
+
     // 3. Apply effects in order of priority
     const contextsToApply = [p1Context, p2Context].filter(c => c !== null && !c.isCancelled) as EffectContext[];
     contextsToApply.sort((a, b) => b.card.effect.priority - a.card.effect.priority);
@@ -246,21 +261,21 @@ export class GameEngine {
     return mutableState;
   }
 
-  private checkConditions(state: GameState, player: PlayerState, opponent: PlayerState, card: CardTemplate, conditions: { [key: string]: any }, currentTurnResolvedActions: ResolvedAction[]): boolean {
+  private checkConditions(state: GameState, player: PlayerState, opponent: PlayerState, card: CardTemplate, conditions: { [key: string]: any }, allPlayedActions: ResolvedAction[]): boolean {
     console.log(`checkConditions: Checking conditions for ${card.name}. Conditions:`, conditions);
-    console.log(`checkConditions: Current turn resolved actions:`, JSON.parse(JSON.stringify(currentTurnResolvedActions)));
+    console.log(`checkConditions: Current turn resolved actions:`, JSON.parse(JSON.stringify(allPlayedActions)));
 
     if (conditions.hasFunds) {
       if (player.funds < conditions.hasFunds) {
-        console.log(`checkConditions: Player ${player.id} does not have enough funds. Required: ${conditions.hasFunds}, Actual: ${player.funds}`);
+        console.log(`checkConditions: Player ${player.playerId} does not have enough funds. Required: ${conditions.hasFunds}, Actual: ${player.funds}`);
         return false;
       }
     }
 
     if (conditions.opponentPlayedCard) {
-      const opponentPlayedCardId = currentTurnResolvedActions.find(
-        (action) => action.playerId === opponent.id
-      )?.cardId;
+      const opponentPlayedCardId = allPlayedActions.find(
+        (action) => action.playerId === opponent.playerId
+      )?.cardTemplateId; // Use cardTemplateId for comparison
       if (opponentPlayedCardId !== conditions.opponentPlayedCard) {
         console.log(`checkConditions: Opponent did not play the required card. Expected: ${conditions.opponentPlayedCard}, Actual: ${opponentPlayedCardId}`);
         return false;
