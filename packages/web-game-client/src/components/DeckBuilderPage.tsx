@@ -20,7 +20,10 @@ const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect }) => {
     const loadCardTemplates = async () => {
       try {
         const fetchedTemplates = await fetchCardTemplates('v1');
-        setAvailableCardTemplates(Object.values(fetchedTemplates));
+        const filteredTemplates = Object.values(fetchedTemplates).filter(
+          (template) => template.templateId !== 'COLLECT_FUNDS'
+        );
+        setAvailableCardTemplates(filteredTemplates);
       } catch (error) {
         console.error("Failed to fetch card templates:", error);
         setMessage("カードテンプレートの取得に失敗しました。");
