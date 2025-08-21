@@ -125,8 +125,6 @@ export class TitleScene extends Phaser.Scene {
     startButtonContainer.on('pointerdown', () => {
       // Reactコンポーネントにゲーム開始を通知するカスタムイベントを発行します。
       this.game.events.emit('startGame');
-      // メインゲームシーンを開始します。
-      this.scene.start('MainGameScene');
     });
   }
 }

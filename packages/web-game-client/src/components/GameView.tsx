@@ -31,7 +31,6 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   const [cardTemplates, setCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({});
   const [gameStarted, setGameStarted] = useState<boolean>(false);
   const [isPhaserReady, setIsPhaserReady] = useState<boolean>(false);
-  const [hasRequiredDecks, setHasRequiredDecks] = useState<boolean>(false);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTitle, setModalTitle] = useState<string>('');
@@ -42,53 +41,70 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   const engineRef = useRef<GameEngine | null>(null);
   const isResolvingTurnRef = useRef(false);
 
+  const selectedDeckIdRef = useRef(selectedDeckId);
   useEffect(() => {
-    const initializeGame = async () => {
-      console.log("InitializeGame: Starting...");
+    selectedDeckIdRef.current = selectedDeckId;
+  }, [selectedDeckId]);
 
-      const authAdapter = new NullAuthAdapter();
-      const currentClientId = authAdapter.getClientId();
-      setClientId(currentClientId);
-      const npcId = 'npc-player-id';
-      setOpponentId(npcId);
+  useEffect(() => {
+    if (phaserContainerRef.current && !gameRef.current) {
+      console.log("GameView: Launching Phaser...");
+      const gameInstance = launch(phaserContainerRef.current);
+      gameRef.current = gameInstance;
+      setIsPhaserReady(true);
 
-      if (!selectedDeckId) {
-        console.warn('InitializeGame: No deck selected.');
-        setHasRequiredDecks(false);
-        setIsPhaserReady(true);
-        return;
-      }
+      const handleStartGame = async () => {
+        console.log("Phaser event 'startGame' received. Initializing game logic...");
+        if (!selectedDeckIdRef.current) {
+          console.error("handleStartGame: No deck selected. Cannot start game.");
+          alert("対戦を開始するには、まず「デッキ構築」画面でデッキを選択してください。");
+          gameRef.current?.scene.getScene('TitleScene')?.scene.restart();
+          return;
+        }
 
-      console.log("InitializeGame: Fetching required data...");
-      const fetchedCardTemplates = await fetchCardTemplates();
-      setCardTemplates(fetchedCardTemplates);
+        const authAdapter = new NullAuthAdapter();
+        const currentClientId = authAdapter.getClientId();
+        setClientId(currentClientId);
 
-      const playerDeckPromise = getDeck(selectedDeckId);
-      const npcDeckPromise = fetch('/decks/npc_default_deck.json').then(res => res.json());
+        if (gameRef.current) {
+          gameRef.current.registry.set('clientId', currentClientId);
+          console.log(`Set clientId in registry: ${currentClientId}`);
+        } else {
+          console.error("handleStartGame: gameRef.current is null, cannot set clientId in registry.");
+        }
 
-      const [loadedPlayerDeck, loadedNpcDeck] = await Promise.all([
-        playerDeckPromise,
-        npcDeckPromise
-      ]).catch(error => {
-        console.error("InitializeGame: Failed to load decks:", error);
-        return [null, null];
-      });
+        const npcId = 'npc-player-id';
+        setOpponentId(npcId);
 
-      if (!loadedPlayerDeck || !loadedNpcDeck) {
-        console.error("InitializeGame: A required deck is missing. Aborting.");
-        setHasRequiredDecks(false);
-        return;
-      }
-      setHasRequiredDecks(true);
-      console.log("InitializeGame: All data fetched and set.");
+        console.log("handleStartGame: Fetching required data...");
+        const fetchedCardTemplates = await fetchCardTemplates();
+        setCardTemplates(fetchedCardTemplates);
+        gameInstance.registry.set('cardTemplates', fetchedCardTemplates);
+        console.log("Card templates set in registry.");
 
-      if (phaserContainerRef.current && !gameRef.current) {
-        console.log("InitializeGame: Launching Phaser...");
-        const gameInstance = launch(phaserContainerRef.current, fetchedCardTemplates);
-        gameRef.current = gameInstance;
-        setIsPhaserReady(true);
-        gameInstance.registry.set('clientId', currentClientId);
+        if (gameRef.current) {
+          console.log("Transitioning to MainGameScene...");
+          gameRef.current.scene.start('MainGameScene');
+        } else {
+          console.error("handleStartGame: gameRef.current is null, cannot start MainGameScene.");
+        }
 
+        const playerDeckPromise = getDeck(selectedDeckIdRef.current);
+        const npcDeckPromise = fetch('/decks/npc_default_deck.json').then(res => res.json());
+
+        const [loadedPlayerDeck, loadedNpcDeck] = await Promise.all([
+          playerDeckPromise,
+          npcDeckPromise
+        ]).catch(error => {
+          console.error("handleStartGame: Failed to load decks:", error);
+          return [null, null];
+        });
+
+        if (!loadedPlayerDeck || !loadedNpcDeck) {
+          console.error("handleStartGame: A required deck is missing. Aborting.");
+          return;
+        }
+        
         const currentMatchId = await createMatch();
         setMatchId(currentMatchId);
 
@@ -96,90 +112,87 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
         engineRef.current = new GameEngine(initialGameState, fetchedCardTemplates);
 
         watchMatchData(currentMatchId, async (data) => {
-          const { state: dbGameState, actions } = data;
-          if (!dbGameState || !engineRef.current) return;
+            console.log(`WATCH: Data received. Phase: ${data?.state?.phase}, Actions exist: ${!!data?.actions}`);
+            const { state: dbGameState, actions } = data;
+            if (!dbGameState || !engineRef.current) return;
 
-          engineRef.current.setState(dbGameState);
-          setGameState(dbGameState);
-          const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
-          if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
+            engineRef.current.setState(dbGameState);
+            setGameState(dbGameState);
+            const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
+            if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
 
-          const playerAction = actions ? actions[currentClientId] : undefined;
-          const opponentAction = actions ? actions[npcId] : undefined;
+            const playerAction = actions ? actions[currentClientId] : undefined;
+            const opponentAction = actions ? actions[npcId] : undefined;
 
-          if (playerAction && opponentAction && dbGameState.phase === 'ACTION') {
-            console.log('WATCH: Both actions found, applying...');
-            // ここで engine を生成する際に fetchedCardTemplates を使う
-            const engineForApply = new GameEngine(dbGameState, fetchedCardTemplates);
-            const newState = engineForApply.applyAction(playerAction, opponentAction);
-            await writeState(currentMatchId, newState);
-            return;
-          }
-
-          if (dbGameState.phase === 'RESOLUTION' && !isResolvingTurnRef.current) {
-            isResolvingTurnRef.current = true;
-            console.log('WATCH: State is RESOLUTION, starting animation...');
-
-            gameRef.current?.registry.set('lastActions', dbGameState.lastActions);
-            // Direct call to MainGameScene's displayTurnActions
-            const mainGameScene = gameRef.current?.scene.getScene('MainGameScene') as MainGameScene;
-            if (mainGameScene) {
-              mainGameScene.displayTurnActions(dbGameState.lastActions);
+            if (playerAction && opponentAction && dbGameState.phase === 'ACTION') {
+              console.log('WATCH: Both actions found, applying...');
+              const engineForApply = new GameEngine(dbGameState, fetchedCardTemplates);
+              const newState = engineForApply.applyAction(playerAction, opponentAction);
+              await writeState(currentMatchId, newState);
+              return;
             }
 
-            await new Promise<void>(resolve => gameRef.current?.events.once('animationComplete', () => resolve()));
-            console.log('WATCH: Animation complete.');
+            if (dbGameState.phase === 'RESOLUTION' && !isResolvingTurnRef.current) {
+              isResolvingTurnRef.current = true;
+              console.log('%cWATCH: State is RESOLUTION, starting animation...', 'color: cyan; font-weight: bold;');
 
-            if (dbGameState.result !== 'IN_PROGRESS') {
-              console.log('WATCH: Game is over, displaying result.');
-              let message: string;
-              let isWin: boolean = false;
-              const playerIsP1 = dbGameState.players[0].playerId === currentClientId;
-              const result = playerIsP1 ? dbGameState.result : 
-                             dbGameState.result === 'WIN' ? 'LOSE' : 
-                             dbGameState.result === 'LOSE' ? 'WIN' : 'DRAW';
-
-              switch (result) {
-                case 'WIN': message = 'You Win!'; isWin = true; break;
-                case 'LOSE': message = 'You Lose!'; break;
-                case 'DRAW': message = 'Draw!'; break;
-                default: message = 'Game Over (Unknown Result)'; break;
+              gameRef.current?.registry.set('lastActions', dbGameState.lastActions);
+              const mainGameScene = gameRef.current?.scene.getScene('MainGameScene') as MainGameScene;
+              if (mainGameScene && mainGameScene.scene.isActive()) {
+                mainGameScene.displayTurnActions(dbGameState.lastActions);
               }
-              gameRef.current?.events.emit('gameOver', message, isWin);
-            } else {
-              console.log('WATCH: Game not over, advancing turn.');
-              // ここで engine を生成する際に fetchedCardTemplates を使う
-              const engineForAdvance = new GameEngine(dbGameState, fetchedCardTemplates);
-              const nextTurnState = engineForAdvance.advanceTurn();
-              // First, clear the actions to prevent re-triggering the resolution.
-              await set(ref(database, `matches/${currentMatchId}/actions`), null);
-              // Then, write the new state for the next turn.
-              await writeState(currentMatchId, nextTurnState);
+
+              await new Promise<void>(resolve => gameRef.current?.events.once('animationComplete', () => resolve()));
+              console.log('WATCH: Animation complete.');
+
+              if (dbGameState.result !== 'IN_PROGRESS') {
+                console.log('WATCH: Game is over, displaying result.');
+                let message: string;
+                let isWin: boolean = false;
+                const playerIsP1 = dbGameState.players[0].playerId === currentClientId;
+                const result = playerIsP1 ? dbGameState.result :
+                               dbGameState.result === 'WIN' ? 'LOSE' :
+                               dbGameState.result === 'LOSE' ? 'WIN' : 'DRAW';
+
+                switch (result) {
+                  case 'WIN': message = 'You Win!'; isWin = true; break;
+                  case 'LOSE': message = 'You Lose!'; break;
+                  case 'DRAW': message = 'Draw!'; break;
+                  default: message = 'Game Over (Unknown Result)'; break;
+                }
+                gameRef.current?.events.emit('gameOver', message, isWin);
+              } else {
+                console.log('WATCH: Game not over, advancing turn.');
+                const engineForAdvance = new GameEngine(dbGameState, fetchedCardTemplates);
+                const nextTurnState = engineForAdvance.advanceTurn();
+                await set(ref(database, `matches/${currentMatchId}/actions`), null);
+                await writeState(currentMatchId, nextTurnState);
+              }
+
+              isResolvingTurnRef.current = false;
+              return;
             }
+          });
 
-            isResolvingTurnRef.current = false;
-            return;
-          }
-        });
+          console.log("handleStartGame: Writing initial state...");
+          const gameStateWithInitialHand = engineRef.current.advanceTurn();
+          await writeState(currentMatchId, gameStateWithInitialHand);
+          setGameStarted(true);
+          console.log("handleStartGame: Initial game state written to DB and game started.");
+      };
 
-        console.log("InitializeGame: Writing initial state...");
-        const gameStateWithInitialHand = engineRef.current.advanceTurn();
-        await writeState(currentMatchId, gameStateWithInitialHand);
-        setGameStarted(true);
-        console.log("InitializeGame: Initial game state written to DB and game started.");
-      }
-    };
+      gameInstance.events.on('startGame', handleStartGame);
 
-    initializeGame();
-
-    return () => {
-      if (gameRef.current && gameRef.current.isBooted) {
-        console.log("GameView Cleanup: Destroying Phaser game instance.");
-        gameRef.current.destroy(true);
-        gameRef.current = null;
-      }
-    };
-  }, [selectedDeckId]);
+      return () => {
+        console.log("GameView Cleanup: Destroying Phaser game instance and event listeners.");
+        gameInstance.events.off('startGame', handleStartGame);
+        if (gameRef.current && gameRef.current.isBooted) {
+          gameRef.current.destroy(true);
+          gameRef.current = null;
+        }
+      };
+    }
+  }, []);
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
@@ -366,10 +379,10 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
                 id="gain-funds-button"
                 className={`action-card-item ${selectedCardId === 'COLLECT_FUNDS' ? 'selected' : ''}`}
                 onClick={() => {
-                  if (selectedCardId === 'GAIN_FUNDS') {
+                  if (selectedCardId === 'COLLECT_FUNDS') {
                     handleCardSelect(null);
                   } else {
-                    handleCardSelect({ playerId: clientId, actionType: 'collect_funds' });
+                    handleCardSelect({ playerId: clientId!, actionType: 'collect_funds' });
                   }
                 }}
               >
@@ -382,14 +395,9 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
           </div>
         </div>
       )}
-      {!isPhaserReady && (
+      {!isPhaserReady && !gameStarted && (
         <div className="loading-overlay visible">
-          <p>Loading game...</p>
-        </div>
-      )}
-      {!hasRequiredDecks && isPhaserReady && (
-        <div className="loading-overlay visible">
-          <p>まずは「デッキ構築」を行いましょう！</p>
+          <p>Loading...</p>
         </div>
       )}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={modalTitle}>
