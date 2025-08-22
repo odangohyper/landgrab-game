@@ -28,7 +28,7 @@ describe('GameEngine', () => {
       ],
       phase: 'DRAW',
       lastActions: [],
-      log: [], // gameLog を log に変更
+      log: [],
       result: 'IN_PROGRESS',
     };
   });
@@ -47,22 +47,22 @@ describe('GameEngine', () => {
           playerId: 'player1',
           properties: 1,
           funds: 0,
-          deck: [], // 追加
-          hand: [], // 追加
-          discard: [], // 追加
+          deck: [],
+          hand: [],
+          discard: [],
         },
         {
           playerId: 'player2',
           properties: 1,
           funds: 0,
-          deck: [], // 追加
-          hand: [], // 追加
-          discard: [], // 追加
+          deck: [],
+          hand: [],
+          discard: [],
         },
       ],
       phase: 'DRAW',
       lastActions: [],
-      log: [], // gameLog を log に変更
+      log: [],
       result: 'IN_PROGRESS',
     };
 
