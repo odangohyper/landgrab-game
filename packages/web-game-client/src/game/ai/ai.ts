@@ -11,7 +11,7 @@ import { GameState, Card, Action, CardTemplate } from '../../types';
  */
 export function calculate_weights(
   gameState: GameState,
-  hand: Card[],
+  hand: CardInstance[],
   cardTemplates: { [templateId: string]: CardTemplate }
 ): Map<string, number> {
   const weights = new Map<string, number>();
@@ -27,13 +27,13 @@ export function calculate_weights(
   hand.forEach(card => {
     const template = cardTemplates[card.templateId];
     if (!template) {
-      weights.set(card.id, 0); // Card template not found
+      weights.set(card.uuid, 0); // Card template not found
       return;
     }
 
     // Cannot afford the card, give it a very low weight to avoid selection unless no other option.
     if (npc.funds < template.cost) {
-      weights.set(card.id, 0.01);
+      weights.set(card.uuid, 0.01);
       return;
     }
 
@@ -79,7 +79,7 @@ export function calculate_weights(
         }
         break;
     }
-    weights.set(card.id, weight);
+    weights.set(card.uuid, weight);
   });
 
   // --- Collect Funds Command Weight Calculation ---
@@ -115,7 +115,7 @@ export function calculate_weights(
  */
 export function choose_card(
   gameState: GameState,
-  hand: Card[],
+  hand: CardInstance[],
   seed: number,
   cardTemplates: { [templateId: string]: CardTemplate }
 ): Action | null {
@@ -123,17 +123,17 @@ export function choose_card(
   if (!npcPlayer) return null;
 
   const weights = calculate_weights(gameState, hand, cardTemplates);
-  const choices: { id: string; type: 'card' | 'command' }[] = [];
+  const choices: { uuid: string; type: 'card' | 'command' }[] = [];
   let totalWeight = 0;
 
   // Add playable cards to choices
   hand.forEach(card => {
     const template = cardTemplates[card.templateId];
     if (template && npcPlayer.funds >= template.cost) {
-        const weight = weights.get(card.id) || 0;
+        const weight = weights.get(card.uuid) || 0;
         if (weight > 0) {
             totalWeight += weight;
-            choices.push({ id: card.id, type: 'card' });
+            choices.push({ uuid: card.uuid, type: 'card' });
         }
     }
   });
@@ -162,7 +162,7 @@ export function choose_card(
     const weight = weights.get(choice.id) || 0;
     if (randomValue < weight) {
       if (choice.type === 'card') {
-        return { playerId: npcPlayer.playerId, actionType: 'play_card', cardId: choice.id };
+        return { playerId: npcPlayer.playerId, actionType: 'play_card', cardUuid: choice.id };
       } else {
         return { playerId: npcPlayer.playerId, actionType: 'collect_funds' };
       }
@@ -174,7 +174,7 @@ export function choose_card(
   const lastChoice = choices.pop();
   if(lastChoice) {
       if (lastChoice.type === 'card') {
-        return { playerId: npcPlayer.playerId, actionType: 'play_card', cardId: lastChoice.id };
+        return { playerId: npcPlayer.playerId, actionType: 'play_card', cardUuid: lastChoice.id };
       } else {
         return { playerId: npcPlayer.playerId, actionType: 'collect_funds' };
       }

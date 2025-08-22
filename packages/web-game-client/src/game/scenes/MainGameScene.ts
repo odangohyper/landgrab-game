@@ -93,11 +93,6 @@ export class MainGameScene extends Phaser.Scene {
   }
 
   public async animateAndResolveTurn(playerAction: Action, opponentAction: Action): Promise<void> {
-    if (this.selectedPlayerCard) {
-      this.selectedPlayerCard.destroy();
-      this.selectedPlayerCard = undefined;
-    }
-
     // Here you can add animations for both cards flipping simultaneously
     // For simplicity, we'll just wait a bit before resolving.
     return new Promise(resolve => {
@@ -135,8 +130,9 @@ export class MainGameScene extends Phaser.Scene {
 
     if (playerAction) {
       console.log(`Queueing player card animation for ${playerAction.cardTemplateId}.`);
-      const playerCardPromise = this.displayPlayedCard(playerAction.cardTemplateId, 'player').then(card => {
+      const playerCardPromise = this.displayPlayedCard(playerAction.cardTemplateId, 'player', this.selectedPlayerCard).then(card => {
         this.playedCardPlayer = card;
+        this.selectedPlayerCard = undefined; // 再利用したのでクリア
       });
       animationPromises.push(playerCardPromise);
     }
@@ -206,7 +202,7 @@ export class MainGameScene extends Phaser.Scene {
     });
   }
 
-  private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent'): Promise<Phaser.GameObjects.Container> {
+  private displayPlayedCard(templateId: string, playerType: 'player' | 'opponent', existingCardContainer?: Phaser.GameObjects.Container): Promise<Phaser.GameObjects.Container> {
     return new Promise(resolve => {
       console.log(`Displaying card ${templateId} for ${playerType}`);
       const { width, height } = this.scale;
@@ -219,17 +215,34 @@ export class MainGameScene extends Phaser.Scene {
       const borderWidth = 6;
       const borderColor = playerType === 'player' ? 0x00ff00 : 0xff0000;
 
-      const cardContainer = this.add.container(targetX, targetY);
-      cardContainer.setAlpha(0);
+      let cardContainer: Phaser.GameObjects.Container;
+      let cardImage: Phaser.GameObjects.Image;
+      let border: Phaser.GameObjects.Graphics;
 
-      const border = this.add.graphics();
-      border.lineStyle(borderWidth, borderColor, 1);
-      border.strokeRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight);
-      cardContainer.add(border);
+      if (existingCardContainer) {
+        cardContainer = existingCardContainer;
+        // 既存のコンテナ内の画像と縁取りを更新
+        cardImage = cardContainer.getAt(1) as Phaser.GameObjects.Image; // 画像は2番目の子要素
+        border = cardContainer.getAt(0) as Phaser.GameObjects.Graphics; // 縁取りは1番目の子要素
+        cardContainer.setAlpha(1); // 既に表示されているのでalphaは1
+        cardContainer.setScale(1); // スケールをリセット
+        cardContainer.setX(targetX);
+        cardContainer.setY(targetY);
+        border.lineStyle(borderWidth, borderColor, 1);
+        border.strokeRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight);
+      } else {
+        cardContainer = this.add.container(targetX, targetY);
+        cardContainer.setAlpha(0); // 新規作成なのでalphaは0
 
-      const cardImage = this.add.image(0, 0, 'card_back')
-        .setDisplaySize(cardWidth, cardHeight);
-      cardContainer.add(cardImage);
+        border = this.add.graphics();
+        border.lineStyle(borderWidth, borderColor, 1);
+        border.strokeRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight);
+        cardContainer.add(border);
+
+        cardImage = this.add.image(0, 0, 'card_back')
+          .setDisplaySize(cardWidth, cardHeight);
+        cardContainer.add(cardImage);
+      }
 
       this.tweens.add({
         targets: cardContainer,
