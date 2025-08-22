@@ -30,10 +30,16 @@ export interface GameState {
 
 // --- Action Interfaces ---
 
+// ユーザーがUI上で選択しているアクション
+export interface SelectedAction {
+  type: 'card' | 'gainFunds';
+  cardUuid?: string; // 'card'の場合、選択されたカードのuuid
+}
+
 export interface Action {
   playerId: string;
   actionType: 'play_card' | 'collect_funds';
-  cardId?: string; // Only for 'play_card'
+  cardUuid?: string; // Only for 'play_card'
 }
 
 export interface ResolvedAction {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameEngine } from '../game/engine';
 import { MainGameScene } from '../game/scenes/MainGameScene';
-import { GameState, PlayerState, Card, Action, CardTemplate, Deck } from '../types';
+import { GameState, PlayerState, CardInstance, Action, CardTemplate, Deck, SelectedAction } from '../types';
 import HandView from './HandView';
 import DeckInfo from './DeckInfo';
 import Modal from './Modal';
@@ -24,13 +24,15 @@ const STACK_OFFSET_Y = 2;
 
 const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [playerHand, setPlayerHand] = useState<Card[]>([]);
+  const [playerHand, setPlayerHand] = useState<CardInstance[]>([]);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [cardTemplates, setCardTemplates] = useState<{ [templateId: string]: CardTemplate }>({});
   const [gameStarted, setGameStarted] = useState<boolean>(false);
   const [isPhaserReady, setIsPhaserReady] = useState<boolean>(false);
+  const [selectedAction, setSelectedAction] = useState<SelectedAction | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTitle, setModalTitle] = useState<string>('');
@@ -194,33 +196,30 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
     }
   }, []);
 
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-
-  const handleCardSelect = (action: Action | null) => {
-    if (action === null) {
-      setSelectedCardId(null);
-    } else if (action.actionType === 'play_card') {
-      setSelectedCardId(action.cardId || null);
-    } else if (action.actionType === 'collect_funds') {
-      setSelectedCardId('COLLECT_FUNDS');
+  const handleActionSelect = (action: SelectedAction | null) => {
+    setSelectedAction(action);
+    const mainGameScene = gameRef.current?.scene.getScene('MainGameScene') as MainGameScene;
+    if (mainGameScene) {
+      mainGameScene.displaySelectedCardBack(action !== null);
     }
   };
 
   const handlePlayTurn = async () => {
-    if (gameState?.phase !== 'ACTION' || !matchId || !clientId || !opponentId) return;
+    if (gameState?.phase !== 'ACTION' || !matchId || !clientId || !opponentId || !selectedAction) return;
+
+    setIsResolving(true);
 
     let player1Action: Action | null = null;
-    if (selectedCardId) {
-      if (selectedCardId === 'COLLECT_FUNDS') {
-        player1Action = { playerId: clientId, actionType: 'collect_funds', cardId: 'COLLECT_FUNDS' };
-      } else {
-        player1Action = { playerId: clientId, actionType: 'play_card', cardId: selectedCardId };
-      }
+    if (selectedAction.type === 'play_card') {
+      player1Action = { playerId: clientId, actionType: 'play_card', cardUuid: selectedAction.cardUuid };
+    } else if (selectedAction.type === 'collect_funds') {
+      player1Action = { playerId: clientId, actionType: 'collect_funds' };
     }
 
     if (!player1Action) {
-        console.warn('handlePlayTurn: Player action is null, aborting.');
-        return;
+      console.warn('handlePlayTurn: Player action is null, aborting.');
+      setIsResolving(false);
+      return;
     }
 
     const npcPlayerState = gameState.players.find(p => p.playerId === opponentId);
@@ -230,8 +229,13 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
     }
 
     if (!player2Action) {
-        console.log('NPC action was null, defaulting to collect_funds.');
-        player2Action = { playerId: opponentId!, actionType: 'collect_funds', cardId: 'COLLECT_FUNDS' };
+      console.log('NPC action was null, defaulting to collect_funds.');
+      player2Action = { playerId: opponentId!, actionType: 'collect_funds' };
+    }
+
+    const mainGameScene = gameRef.current?.scene.getScene('MainGameScene') as MainGameScene;
+    if (mainGameScene) {
+      await mainGameScene.animateAndResolveTurn(player1Action, player2Action);
     }
 
     const actionsToSubmit: { [key: string]: Action } = {
@@ -240,13 +244,14 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
     };
 
     await set(ref(database, `matches/${matchId}/actions`), actionsToSubmit);
-    setSelectedCardId(null);
+    setSelectedAction(null);
+    setIsResolving(false);
   };
 
   const currentPlayerState = gameState?.players.find(p => p.playerId === clientId);
   const opponentState = gameState?.players.find(p => p.playerId === opponentId);
-  const playableCardIds = currentPlayerState && gameState && cardTemplates
-    ? new GameEngine(gameState, cardTemplates).getPlayableCards(currentPlayerState).map(card => card.id)
+  const playableCardUuids = currentPlayerState && gameState && cardTemplates
+    ? new GameEngine(gameState, cardTemplates).getPlayableCards(currentPlayerState).map(card => card.uuid)
     : [];
 
   const logsToRender = (() => {
@@ -373,23 +378,30 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
                 ))}
               </div>
             </div>
-            <HandView hand={playerHand} onCardSelect={handleCardSelect} playableCardIds={playableCardIds} cardTemplates={cardTemplates} selectedCardId={selectedCardId} playerId={clientId || ''} />
+            <HandView
+              hand={playerHand}
+              onActionSelect={handleActionSelect} // Corrected prop name
+              playableCardUuids={playableCardUuids} // Corrected prop name
+              cardTemplates={cardTemplates}
+              selectedAction={selectedAction} // Corrected prop name
+              playerId={clientId || ''}
+            />
             <div className="action-bar">
               <div
                 id="gain-funds-button"
-                className={`action-card-item ${selectedCardId === 'COLLECT_FUNDS' ? 'selected' : ''}`}
+                className={`action-card-item ${selectedAction?.type === 'collect_funds' ? 'selected' : ''}`}
                 onClick={() => {
-                  if (selectedCardId === 'COLLECT_FUNDS') {
-                    handleCardSelect(null);
+                  if (selectedAction?.type === 'collect_funds') {
+                    handleActionSelect(null);
                   } else {
-                    handleCardSelect({ playerId: clientId!, actionType: 'collect_funds' });
+                    handleActionSelect({ type: 'collect_funds' });
                   }
                 }}
               >
                 <p className="action-card-name">資金集め</p>
               </div>
-              <button onClick={handlePlayTurn} disabled={!selectedCardId || (gameState?.phase !== 'ACTION')} className="play-button">
-                Play Turn
+              <button onClick={handlePlayTurn} disabled={!selectedAction || isResolving || (gameState?.phase !== 'ACTION')} className="play-button">
+                {isResolving ? '解決中...' : 'Play Turn'}
               </button>
             </div>
           </div>

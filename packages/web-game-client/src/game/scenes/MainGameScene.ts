@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
-import { CardTemplate, ResolvedAction } from '../../types';
+import { CardTemplate, ResolvedAction, Action } from '../../types';
 
 export class MainGameScene extends Phaser.Scene {
   private playedCardPlayer?: Phaser.GameObjects.Container;
   private playedCardOpponent?: Phaser.GameObjects.Container;
+  private selectedPlayerCard?: Phaser.GameObjects.Container;
 
   constructor() {
     super({ key: 'MainGameScene' });
@@ -45,6 +46,12 @@ export class MainGameScene extends Phaser.Scene {
     }
   }
 
+  shutdown() {
+    console.log('MainGameScene shutdown() called');
+    this.game.events.off('gameOver', this.displayGameOverMessage, this);
+    this.game.registry.events.off('set', this.handleRegistryChange, this);
+  }
+
   private handleRegistryChange(parent: any, key: string, data: any, previousData: any) {
     console.log(`Registry change detected. Key: '${key}'.`);
     if (key === 'lastActions') {
@@ -53,6 +60,51 @@ export class MainGameScene extends Phaser.Scene {
         this.displayTurnActions(data);
       }
     }
+  }
+
+  public displaySelectedCardBack(isVisible: boolean) {
+    if (isVisible) {
+      if (!this.selectedPlayerCard) {
+        const { width, height } = this.scale;
+        const cardWidth = 200;
+        const cardHeight = 400;
+        const borderWidth = 6;
+        const borderColor = 0x00ff00; // 蛍光色の緑
+
+        this.selectedPlayerCard = this.add.container(width / 2 + 120, height / 2);
+
+        const border = this.add.graphics();
+        border.lineStyle(borderWidth, borderColor, 1);
+        border.strokeRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight);
+        this.selectedPlayerCard.add(border);
+
+        const cardImage = this.add.image(0, 0, 'card_back')
+          .setDisplaySize(cardWidth, cardHeight);
+        this.selectedPlayerCard.add(cardImage);
+
+        this.selectedPlayerCard.setDepth(0);
+      }
+      this.selectedPlayerCard.setVisible(true);
+    } else {
+      if (this.selectedPlayerCard) {
+        this.selectedPlayerCard.setVisible(false);
+      }
+    }
+  }
+
+  public async animateAndResolveTurn(playerAction: Action, opponentAction: Action): Promise<void> {
+    if (this.selectedPlayerCard) {
+      this.selectedPlayerCard.destroy();
+      this.selectedPlayerCard = undefined;
+    }
+
+    // Here you can add animations for both cards flipping simultaneously
+    // For simplicity, we'll just wait a bit before resolving.
+    return new Promise(resolve => {
+      this.time.delayedCall(500, () => {
+        resolve();
+      });
+    });
   }
 
   public async displayTurnActions(actions: ResolvedAction[] | null) {

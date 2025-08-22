@@ -1,6 +1,6 @@
 // packages/web-game-client/src/game/engine.ts
 
-import { GameState, PlayerState, Action, Card, CardTemplate, ResolvedAction, EffectAction, Deck } from '../types';
+import { GameState, PlayerState, Action, CardInstance, CardTemplate, ResolvedAction, EffectAction, Deck } from '../types';
 import { acquireProperty } from './effects/acquireProperty';
 import { gainFunds } from './effects/gainFunds';
 
@@ -78,7 +78,7 @@ export class GameEngine {
     return this.cardTemplates[templateId];
   }
 
-  public getPlayableCards(player: PlayerState): Card[] {
+  public getPlayableCards(player: PlayerState): CardInstance[] {
     if (!player) return [];
     return player.hand.filter(card => {
       const template = this.getCardTemplate(card.templateId);
@@ -88,10 +88,10 @@ export class GameEngine {
 
   public static createInitialState(player1Id: string, player2Id: string, cardTemplates: { [key: string]: CardTemplate }, player1Deck: Deck, player2Deck: Deck): GameState {
     const createPlayer = (id: string, deckData: Deck): PlayerState => {
-      const cardsInDeck: Card[] = [];
+      const cardsInDeck: CardInstance[] = [];
       for (const templateId in deckData.cards) {
         for (let i = 0; i < deckData.cards[templateId]; i++) {
-          cardsInDeck.push({ id: `${templateId}-${i}-${Date.now()}`, templateId });
+          cardsInDeck.push({ uuid: crypto.randomUUID(), templateId });
         }
       }
       return {
@@ -138,7 +138,7 @@ export class GameEngine {
     const getEffectContext = (player: PlayerState | undefined, action: Action | null, opponent: PlayerState | undefined): EffectContext | null => {
       if (!action || !player) return null;
 
-      let cardInstance: Card | undefined;
+      let cardInstance: CardInstance | undefined;
       let template: CardTemplate | undefined;
 
       if (action.actionType === 'collect_funds') {
@@ -147,11 +147,11 @@ export class GameEngine {
           console.warn(`getEffectContext: Card template for COLLECT_FUNDS not found.`);
           return null;
         }
-        cardInstance = { id: 'COLLECT_FUNDS_COMMAND', templateId: 'COLLECT_FUNDS' };
+        cardInstance = { uuid: 'COLLECT_FUNDS_COMMAND', templateId: 'COLLECT_FUNDS' };
       } else {
-        cardInstance = player.hand.find(c => c.id === action.cardId);
+        cardInstance = player.hand.find(c => c.uuid === action.cardUuid);
         if (!cardInstance) {
-          console.warn(`getEffectContext: Card instance ${action.cardId} not found in player ${player.playerId}'s hand.`);
+          console.warn(`getEffectContext: Card instance ${action.cardUuid} not found in player ${player.playerId}'s hand.`);
           return null;
         }
         template = this.cardTemplates[cardInstance.templateId];
@@ -191,7 +191,7 @@ export class GameEngine {
         context.player.funds -= context.card.cost;
         const cardInstance = context.player.hand.find(c => c.templateId === context.card.templateId);
         if (cardInstance) { // Add a check for cardInstance existence
-          context.player.hand = context.player.hand.filter(c => c.id !== cardInstance.id);
+          context.player.hand = context.player.hand.filter(c => c.uuid !== cardInstance.uuid);
           context.player.discard.push(cardInstance);
         } else {
           console.warn(`resolveActions: Card instance for template ${context.card.templateId} not found in hand for player ${context.player.playerId}.`);
