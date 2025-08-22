@@ -1,36 +1,58 @@
-import { GameState, PlayerState } from '../../types';
 import { acquireProperty } from './acquireProperty';
+import { GameState, EffectAction } from '../../types';
 
-describe('acquireProperty effect', () => {
+describe('acquireProperty', () => {
   let state: GameState;
-  let player1: PlayerState;
-  let player2: PlayerState;
+  let player1Id: string;
+  let player2Id: string;
 
   beforeEach(() => {
-    player1 = { playerId: 'p1', funds: 5, properties: 1, hand: [], deck: [], discard: [] };
-    player2 = { playerId: 'p2', funds: 5, properties: 1, hand: [], deck: [], discard: [] };
+    player1Id = 'player1';
+    player2Id = 'player2';
     state = {
-      matchId: 'test', turn: 1, phase: 'RESOLUTION', players: [player1, player2],
-      lastActions: [], log: []
+      matchId: 'testMatch',
+      turn: 1,
+      players: [
+        { playerId: player1Id, properties: 1, funds: 0, deck: [], hand: [], discard: [] },
+        { playerId: player2Id, properties: 1, funds: 0, deck: [], hand: [], discard: [] },
+      ],
+      phase: 'RESOLUTION',
+      lastActions: [],
+      log: [],
+      result: 'IN_PROGRESS',
     };
   });
 
-  it('should transfer one property from opponent to player', () => {
-    const newState = acquireProperty(state, player1.playerId);
-    const newPlayer1 = newState.players.find(p => p.playerId === 'p1')!;
-    const newPlayer2 = newState.players.find(p => p.playerId === 'p2')!;
+  it('should transfer a property from opponent to player', () => {
+    const action: EffectAction = { name: 'ACQUIRE_PROPERTY' };
+    const newState = acquireProperty(state, player1Id, player2Id, action);
 
-    expect(newPlayer1.properties).toBe(2);
-    expect(newPlayer2.properties).toBe(0);
+    expect(newState.players.find(p => p.playerId === player1Id)?.properties).toBe(2);
+    expect(newState.players.find(p => p.playerId === player2Id)?.properties).toBe(0);
+    expect(newState.log).toContain(`${player1Id}が${player2Id}の不動産を1つ奪った！`);
+    expect(newState.result).toBe('IN_PROGRESS');
   });
 
-  it('should do nothing if opponent has no properties', () => {
-    player2.properties = 0;
-    const newState = acquireProperty(state, player1.playerId);
-    const newPlayer1 = newState.players.find(p => p.playerId === 'p1')!;
-    const newPlayer2 = newState.players.find(p => p.playerId === 'p2')!;
+  it('should set game result to WIN if opponent properties become 0', () => {
+    state.players.find(p => p.playerId === player2Id)!.properties = 1;
+    const action: EffectAction = { name: 'ACQUIRE_PROPERTY' };
+    const newState = acquireProperty(state, player1Id, player2Id, action);
 
-    expect(newPlayer1.properties).toBe(1);
-    expect(newPlayer2.properties).toBe(0);
+    expect(newState.players.find(p => p.playerId === player1Id)?.properties).toBe(2);
+    expect(newState.players.find(p => p.playerId === player2Id)?.properties).toBe(0);
+    expect(newState.log).toContain(`${player1Id}が${player2Id}の不動産を1つ奪った！`);
+    expect(newState.result).toEqual({ winner: player1Id, reason: '相手の不動産をすべて奪った' });
+    expect(newState.phase).toBe('GAME_OVER');
+  });
+
+  it('should not transfer property if opponent has no properties', () => {
+    state.players.find(p => p.playerId === player2Id)!.properties = 0;
+    const action: EffectAction = { name: 'ACQUIRE_PROPERTY' };
+    const newState = acquireProperty(state, player1Id, player2Id, action);
+
+    expect(newState.players.find(p => p.playerId === player1Id)?.properties).toBe(1);
+    expect(newState.players.find(p => p.playerId === player2Id)?.properties).toBe(0);
+    expect(newState.log).toContain(`${player2Id}は不動産を持っていないため、${player1Id}は不動産を奪えなかった。`);
+    expect(newState.result).toBe('IN_PROGRESS');
   });
 });

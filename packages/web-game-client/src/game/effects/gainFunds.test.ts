@@ -1,33 +1,41 @@
-import { GameState, PlayerState, EffectAction } from '../../types';
 import { gainFunds } from './gainFunds';
+import { GameState, EffectAction } from '../../types';
 
-describe('gainFunds effect', () => {
+describe('gainFunds', () => {
   let state: GameState;
-  let player1: PlayerState;
-  let player2: PlayerState; // opponent 用に追加
+  let player1Id: string;
+  let player2Id: string; // opponentId を追加
 
   beforeEach(() => {
-    player1 = { playerId: 'p1', funds: 5, properties: 1, hand: [], deck: [], discard: [] };
-    player2 = { playerId: 'p2', funds: 0, properties: 1, hand: [], deck: [], discard: [] }; // opponent 用に追加
+    player1Id = 'player1';
+    player2Id = 'player2'; // opponentId を初期化
     state = {
-      matchId: 'test', turn: 1, phase: 'RESOLUTION', players: [player1, player2], // player2 を追加
-      lastActions: [], log: []
+      matchId: 'testMatch',
+      turn: 1,
+      players: [
+        { playerId: player1Id, properties: 1, funds: 0, deck: [], hand: [], discard: [] },
+        { playerId: player2Id, properties: 1, funds: 0, deck: [], hand: [], discard: [] },
+      ],
+      phase: 'RESOLUTION',
+      lastActions: [],
+      log: [],
+      result: 'IN_PROGRESS',
     };
   });
 
   it('should increase player funds by the specified value', () => {
-    const action: EffectAction = { name: 'GAIN_FUNDS', value: 3 };
-    const newState = gainFunds(state, player1.playerId, player2.playerId, action); // player2.playerId を追加
-    const newPlayer1 = newState.players.find(p => p.playerId === 'p1')!;
+    const action: EffectAction = { name: 'GAIN_FUNDS', value: 5 };
+    const newState = gainFunds(state, player1Id, player2Id, action); // opponentId を追加
 
-    expect(newPlayer1.funds).toBe(8); // 5 + 3
+    expect(newState.players.find(p => p.playerId === player1Id)?.funds).toBe(5);
+    expect(newState.log).toContain(`${player1Id}が5資金を得た！`);
   });
 
-  it('should not change funds if value is not provided', () => {
-    const action: EffectAction = { name: 'GAIN_FUNDS' }; // No value
-    const newState = gainFunds(state, player1.playerId, player2.playerId, action); // player2.playerId を追加
-    const newPlayer1 = newState.players.find(p => p.playerId === 'p1')!;
+  it('should increase player funds by 0 if value is not specified', () => {
+    const action: EffectAction = { name: 'GAIN_FUNDS' };
+    const newState = gainFunds(state, player1Id, player2Id, action); // opponentId を追加
 
-    expect(newPlayer1.funds).toBe(5);
+    expect(newState.players.find(p => p.playerId === player1Id)?.funds).toBe(0);
+    expect(newState.log).toContain(`${player1Id}が0資金を得た！`);
   });
 });
