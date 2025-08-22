@@ -34,6 +34,12 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   const [selectedAction, setSelectedAction] = useState<SelectedAction | null>(null);
   const [isResolving, setIsResolving] = useState(false);
 
+  const previousGameStateRef = useRef<GameState | null>(null);
+  const [playerFundsGlow, setPlayerFundsGlow] = useState<'increase' | 'decrease' | 'none'>('none');
+  const [playerPropertiesGlow, setPlayerPropertiesGlow] = useState<'increase' | 'decrease' | 'none'>('none');
+  const [opponentFundsGlow, setOpponentFundsGlow] = useState<'increase' | 'decrease' | 'none'>('none');
+  const [opponentPropertiesGlow, setOpponentPropertiesGlow] = useState<'increase' | 'decrease' | 'none'>('none');
+
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalTitle, setModalTitle] = useState<string>('');
   const [modalContent, setModalContent] = useState<'deck' | 'discard' | null>(null);
@@ -47,6 +53,34 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
   useEffect(() => {
     selectedDeckIdRef.current = selectedDeckId;
   }, [selectedDeckId]);
+
+  useEffect(() => {
+    if (playerFundsGlow !== 'none') {
+      const timer = setTimeout(() => setPlayerFundsGlow('none'), 700); // Glow duration
+      return () => clearTimeout(timer);
+    }
+  }, [playerFundsGlow]);
+
+  useEffect(() => {
+    if (playerPropertiesGlow !== 'none') {
+      const timer = setTimeout(() => setPlayerPropertiesGlow('none'), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [playerPropertiesGlow]);
+
+  useEffect(() => {
+    if (opponentFundsGlow !== 'none') {
+      const timer = setTimeout(() => setOpponentFundsGlow('none'), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [opponentFundsGlow]);
+
+  useEffect(() => {
+    if (opponentPropertiesGlow !== 'none') {
+      const timer = setTimeout(() => setOpponentPropertiesGlow('none'), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [opponentPropertiesGlow]);
 
   useEffect(() => {
     if (phaserContainerRef.current && !gameRef.current) {
@@ -118,10 +152,31 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             const { state: dbGameState, actions } = data;
             if (!dbGameState || !engineRef.current) return;
 
+            const previousGameState = previousGameStateRef.current;
+
             engineRef.current.setState(dbGameState);
             setGameState(dbGameState);
             const currentPlayerState = dbGameState.players.find((p) => p.playerId === currentClientId);
-            if (currentPlayerState) setPlayerHand(currentPlayerState.hand);
+            const currentOpponentState = dbGameState.players.find((p) => p.playerId === opponentId);
+
+            if (currentPlayerState) {
+              setPlayerHand(currentPlayerState.hand);
+              if (previousGameState) {
+                const prevPlayerState = previousGameState.players.find((p) => p.playerId === currentClientId);
+                if (prevPlayerState) {
+                  setPlayerFundsGlow(currentPlayerState.funds > prevPlayerState.funds ? 'increase' : currentPlayerState.funds < prevPlayerState.funds ? 'decrease' : 'none');
+                  setPlayerPropertiesGlow(currentPlayerState.properties > prevPlayerState.properties ? 'increase' : currentPlayerState.properties < prevPlayerState.properties ? 'decrease' : 'none');
+                }
+              }
+            }
+
+            if (currentOpponentState && previousGameState) {
+              const prevOpponentState = previousGameState.players.find((p) => p.playerId === opponentId);
+              if (prevOpponentState) {
+                setOpponentFundsGlow(currentOpponentState.funds > prevOpponentState.funds ? 'increase' : currentOpponentState.funds < prevOpponentState.funds ? 'decrease' : 'none');
+                setOpponentPropertiesGlow(currentOpponentState.properties > prevOpponentState.properties ? 'increase' : currentOpponentState.properties < prevOpponentState.properties ? 'decrease' : 'none');
+              }
+            }
 
             const playerAction = actions ? actions[currentClientId] : undefined;
             const opponentAction = actions ? actions[npcId] : undefined;
@@ -131,6 +186,7 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
               const engineForApply = new GameEngine(dbGameState, fetchedCardTemplates);
               const newState = engineForApply.applyAction(playerAction, opponentAction);
               await writeState(currentMatchId, newState);
+              previousGameStateRef.current = dbGameState; // Update ref here as well
               return;
             }
 
@@ -172,8 +228,10 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
               }
 
               isResolvingTurnRef.current = false;
+              previousGameStateRef.current = dbGameState; // Update ref here
               return;
             }
+            previousGameStateRef.current = dbGameState; // Update ref here for all cases
           });
 
           console.log("handleStartGame: Writing initial state...");
@@ -286,8 +344,8 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             {opponentState && (
               <div className="hud opponent-hud">
                 <h2>対戦相手</h2>
-                <p>資金: {opponentState.funds}</p>
-                <p>不動産: {opponentState.properties}</p>
+                <p className={opponentFundsGlow === 'increase' ? 'glow-blue' : opponentFundsGlow === 'decrease' ? 'glow-red' : ''}>資金: {opponentState.funds}</p>
+                <p className={opponentPropertiesGlow === 'increase' ? 'glow-blue' : opponentPropertiesGlow === 'decrease' ? 'glow-red' : ''}>不動産: {opponentState.properties}</p>
               </div>
             )}
             {opponentState && (
@@ -327,8 +385,8 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             {currentPlayerState && (
               <div className="hud player-hud">
                 <h2>プレイヤー</h2>
-                <p>資金: {currentPlayerState.funds}</p>
-                <p>不動産: {currentPlayerState.properties}</p>
+                <p className={playerFundsGlow === 'increase' ? 'glow-blue' : playerFundsGlow === 'decrease' ? 'glow-red' : ''}>資金: {currentPlayerState.funds}</p>
+                <p className={playerPropertiesGlow === 'increase' ? 'glow-blue' : playerPropertiesGlow === 'decrease' ? 'glow-red' : ''}>不動産: {currentPlayerState.properties}</p>
               </div>
             )}
             {currentPlayerState && (

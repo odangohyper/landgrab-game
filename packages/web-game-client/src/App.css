@@ -581,3 +581,43 @@ body {
   opacity: 1;
   pointer-events: auto;
 }
+
+
+/* Glow effect for value changes */
+@keyframes glow-blue-animation {
+  0% {
+    text-shadow: 0 0 5px rgba(0, 128, 255, 0.5);
+    color: inherit;
+  }
+  50% {
+    text-shadow: 0 0 100px rgb(255, 255, 255), 0 0 20px rgba(255, 255, 255, 0.8);
+    color: #e0f2ff; /* Lighter blue for glow */
+  }
+  100% {
+    text-shadow: 0 0 5px rgba(0, 128, 255, 0.5);
+    color: inherit;
+  }
+}
+
+@keyframes glow-red-animation {
+  0% {
+    text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+    color: inherit;
+  }
+  50% {
+    text-shadow: 0 0 100px rgba(255, 0, 0, 1), 0 0 20px rgba(255, 0, 0, 0.8);
+    color: #ffe0e0; /* Lighter red for glow */
+  }
+  100% {
+    text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+    color: inherit;
+  }
+}
+
+.glow-blue {
+  animation: glow-blue-animation 0.5s ease-out forwards;
+}
+
+.glow-red {
+  animation: glow-red-animation 0.5s ease-out forwards;
+}
