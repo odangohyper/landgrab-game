@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CardTemplate } from '../types';
-import './DeckInfo.css'; // Assuming DeckInfo.css contains relevant styles
+import styles from './DeckInfo.module.css';
 
 interface DeckEditFormProps {
   deck: {
@@ -68,9 +68,9 @@ const DeckEditForm: React.FC<DeckEditFormProps> = ({ deck, availableCardTemplate
   };
 
   return (
-    <div className="deck-edit-form">
+    <div className={styles['deck-edit-form']}>
       <h2>{deck.id ? 'デッキを編集' : '新しいデッキを作成'}</h2>
-      <div className="form-group">
+      <div className={styles['form-group']}>
         <label htmlFor="deckName">デッキ名:</label>
         <input
           type="text"
@@ -82,13 +82,13 @@ const DeckEditForm: React.FC<DeckEditFormProps> = ({ deck, availableCardTemplate
       </div>
 
       <h3>カード選択 ({currentTotalCards}/10)</h3>
-      <div className="card-selection-grid">
+      <div className={styles['card-selection-grid']}>
         {availableCardTemplates.map(card => (
-          <div key={card.templateId} className="card-item">
-            <img src={`/images/cards/${card.templateId}.jpg`} alt={card.name} className="card-image" />
-            <div className="card-controls">
+          <div key={card.templateId} className={styles['card-item']}>
+            <img src={`/images/cards/${card.templateId}.jpg`} alt={card.name} className={styles['card-image']} />
+            <div className={styles['card-controls']}>
               <span>{card.name} ({selectedCards[card.templateId] || 0})</span>
-              <div className="card-buttons">
+              <div className={styles['card-buttons']}>
                 <button onClick={() => handleCardCountChange(card.templateId, -1)} disabled={(selectedCards[card.templateId] || 0) === 0}>-</button>
                 <button onClick={() => handleCardCountChange(card.templateId, 1)} disabled={currentTotalCards >= 10}>+</button>
               </div>
@@ -97,7 +97,7 @@ const DeckEditForm: React.FC<DeckEditFormProps> = ({ deck, availableCardTemplate
         ))}
       </div>
 
-      <div className="form-actions">
+      <div className={styles['form-actions']}>
         <button onClick={handleSave} disabled={currentTotalCards !== 10}>保存</button>
         <button onClick={onCancel}>キャンセル</button>
       </div>

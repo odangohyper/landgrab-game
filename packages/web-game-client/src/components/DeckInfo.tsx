@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardTemplate } from '../types';
-import './DeckInfo.css';
+import styles from './DeckInfo.module.css';
 
 interface DeckInfoProps {
   cards: Card[];
@@ -19,9 +19,9 @@ const DeckInfo: React.FC<DeckInfoProps> = ({ cards, cardTemplates, isDeck }) => 
     }, {} as { [key: string]: number });
 
     return (
-      <div className="deck-info-container modal-view">
+      <div className={`${styles['deck-info-container']} ${styles['modal-view']}`}>
         <p>残り枚数: {cards.length}</p>
-        <ul className="card-list">
+        <ul className={styles['card-list']}>
           {Object.entries(cardCounts).map(([name, count]) => (
             <li key={name}>{name} x{count}</li>
           ))}
@@ -32,11 +32,11 @@ const DeckInfo: React.FC<DeckInfoProps> = ({ cards, cardTemplates, isDeck }) => 
 
   // For the discard pile, we show the cards in order.
   return (
-    <div className="deck-info-container modal-view">
+    <div className={`${styles['deck-info-container']} ${styles['modal-view']}`}>
       {cards.length === 0 ? (
         <p>捨札はありません。</p>
       ) : (
-        <ul className="card-list">
+        <ul className={styles['card-list']}>
           {cards.map((card, index) => {
             const template = cardTemplates[card.templateId];
             return (
