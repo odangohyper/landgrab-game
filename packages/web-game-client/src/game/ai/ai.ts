@@ -20,6 +20,8 @@ export function calculate_weights(
 
   if (!npc || !opponent) return weights;
 
+  console.log('AI: calculate_weights - Input State:', { npcFunds: npc.funds, npcProperties: npc.properties, opponentProperties: opponent.properties, hand: hand.map(c => c.templateId) });
+
   const canOpponentAcquire = opponent.funds >= (cardTemplates['ACQUIRE']?.cost || 2);
   const canOpponentBribe = opponent.funds >= (cardTemplates['BRIBE']?.cost || 5);
 
@@ -28,12 +30,14 @@ export function calculate_weights(
     const template = cardTemplates[card.templateId];
     if (!template) {
       weights.set(card.uuid, 0); // Card template not found
+      console.log(`AI: Card ${card.templateId} (${card.uuid}) - Template not found, weight: 0`);
       return;
     }
 
     // Cannot afford the card, give it a very low weight to avoid selection unless no other option.
     if (npc.funds < template.cost) {
       weights.set(card.uuid, 0.01);
+      console.log(`AI: Card ${card.templateId} (${card.uuid}) - Unaffordable (Funds: ${npc.funds}, Cost: ${template.cost}), weight: 0.01`);
       return;
     }
 
@@ -80,6 +84,7 @@ export function calculate_weights(
         break;
     }
     weights.set(card.uuid, weight);
+    console.log(`AI: Card ${template.templateId} (${card.uuid}) - Calculated weight: ${weight}`);
   });
 
   // --- Collect Funds Command Weight Calculation ---
@@ -89,18 +94,24 @@ export function calculate_weights(
     return template && npc.funds >= template.cost;
   });
 
+  console.log(`AI: Collect Funds - Affordable cards count: ${affordableCards.length}`);
+
   // If no cards are playable, collecting funds is the only good option.
   if (affordableCards.length === 0) {
     collectFundsWeight += 10;
+    console.log('AI: Collect Funds - No affordable cards, boosting weight by 10.');
   } else {
     // If funds are very low, collecting is still a decent option.
     if (npc.funds < 2) {
       collectFundsWeight += 3;
+      console.log('AI: Collect Funds - Funds very low (<2), boosting weight by 3.');
     }
   }
 
   weights.set('COLLECT_FUNDS_COMMAND', collectFundsWeight);
+  console.log(`AI: Collect Funds - Final weight: ${collectFundsWeight}`);
 
+  console.log('AI: calculate_weights - Final Weights Map:', weights);
   return weights;
 }
 
@@ -122,31 +133,44 @@ export function choose_card(
   const npcPlayer = gameState.players.find(p => p.playerId === 'npc-player-id');
   if (!npcPlayer) return null;
 
+  console.log('AI: choose_card - Input State:', { npcFunds: npcPlayer.funds, hand: hand.map(c => c.templateId) });
+
   const weights = calculate_weights(gameState, hand, cardTemplates);
+  console.log('AI: choose_card - Weights from calculate_weights:', weights);
+
   const choices: { uuid: string; type: 'card' | 'command' }[] = [];
   let totalWeight = 0;
 
   // Add playable cards to choices
   hand.forEach(card => {
     const template = cardTemplates[card.templateId];
-    if (template && npcPlayer.funds >= template.cost) {
-        const weight = weights.get(card.uuid) || 0;
-        if (weight > 0) {
-            totalWeight += weight;
-            choices.push({ uuid: card.uuid, type: 'card' });
-        }
+    const canAfford = template && npcPlayer.funds >= template.cost;
+    const weight = weights.get(card.uuid) || 0;
+
+    console.log(`AI: choose_card - Evaluating card ${card.templateId} (${card.uuid}): Can afford: ${canAfford}, Weight: ${weight}`);
+
+    if (canAfford && weight > 0) {
+        totalWeight += weight;
+        choices.push({ uuid: card.uuid, type: 'card' });
+        console.log(`AI: choose_card - Added card ${card.templateId} to choices. Current totalWeight: ${totalWeight}`);
     }
   });
 
   // Add collect funds command to choices
   const collectFundsWeight = weights.get('COLLECT_FUNDS_COMMAND') || 0;
+  console.log(`AI: choose_card - Evaluating COLLECT_FUNDS_COMMAND: Weight: ${collectFundsWeight}`);
   if (collectFundsWeight > 0) {
     totalWeight += collectFundsWeight;
     choices.push({ id: 'COLLECT_FUNDS_COMMAND', type: 'command' });
+    console.log(`AI: choose_card - Added COLLECT_FUNDS_COMMAND to choices. Current totalWeight: ${totalWeight}`);
   }
+
+  console.log('AI: choose_card - Final choices array:', choices);
+  console.log('AI: choose_card - Final totalWeight:', totalWeight);
 
   if (totalWeight === 0 || choices.length === 0) {
     // If no valid choices, default to collecting funds if possible, otherwise do nothing.
+    console.log('AI: choose_card - No valid choices (totalWeight is 0 or choices array is empty). Defaulting to COLLECT_FUNDS.');
     return npcPlayer ? { playerId: npcPlayer.playerId, actionType: 'collect_funds' } : null;
   }
 
@@ -157,28 +181,36 @@ export function choose_card(
     return s / 233280;
   };
   let randomValue = random() * totalWeight;
+  console.log(`AI: choose_card - Random value for selection: ${randomValue} (out of ${totalWeight})`);
 
   for (const choice of choices) {
-    const weight = weights.get(choice.id) || 0;
+    const weight = weights.get(choice.id || choice.uuid) || 0; // Use choice.id for command, choice.uuid for card
+    console.log(`AI: choose_card - Checking choice ${choice.id || choice.uuid} (Weight: ${weight}). randomValue: ${randomValue}`);
     if (randomValue < weight) {
       if (choice.type === 'card') {
-        return { playerId: npcPlayer.playerId, actionType: 'play_card', cardUuid: choice.id };
-      } else {
+        console.log(`AI: choose_card - Selected card: ${choice.uuid}`);
+        return { playerId: npcPlayer.playerId, actionType: 'play_card', cardUuid: choice.uuid };
+      }
+      else {
+        console.log('AI: choose_card - Selected command: COLLECT_FUNDS');
         return { playerId: npcPlayer.playerId, actionType: 'collect_funds' };
       }
     }
     randomValue -= weight;
+    console.log(`AI: choose_card - randomValue after subtraction: ${randomValue}`);
   }
 
   // Fallback in case of floating point inaccuracies, return the last valid choice
   const lastChoice = choices.pop();
   if(lastChoice) {
+      console.log(`AI: choose_card - Fallback: Returning last choice ${lastChoice.id || lastChoice.uuid}`);
       if (lastChoice.type === 'card') {
-        return { playerId: npcPlayer.playerId, actionType: 'play_card', cardUuid: lastChoice.id };
+        return { playerId: npcPlayer.playerId, actionType: 'play_card', cardUuid: lastChoice.uuid };
       } else {
         return { playerId: npcPlayer.playerId, actionType: 'collect_funds' };
       }
   }
 
+  console.log('AI: choose_card - Should not reach here. Returning null.');
   return null; // Should be unreachable if there are choices
 }
