@@ -1,5 +1,5 @@
 import { calculate_weights, choose_card } from './ai';
-import { GameState, Card, CardTemplate, Action } from '../../types'; // CardInstance を Card に変更
+import { GameState, CardInstance, CardTemplate, Action } from '../../types';
 
 describe('AI', () => {
   let gameState: GameState;
@@ -46,10 +46,10 @@ describe('AI', () => {
 
   describe('calculate_weights', () => {
     it('should return weights for cards in hand based on game state', () => {
-      const hand: Card[] = [
-        { id: 'c1', templateId: 'ACQUIRE' },
-        { id: 'c2', templateId: 'DEFEND' },
-        { id: 'c3', templateId: 'GAIN_FUNDS' },
+      const hand: CardInstance[] = [
+        { uuid: 'c1', templateId: 'ACQUIRE' },
+        { uuid: 'c2', templateId: 'DEFEND' },
+        { uuid: 'c3', templateId: 'GAIN_FUNDS' },
       ];
 
       const weights = calculate_weights(gameState, hand, cardTemplates);
@@ -63,10 +63,10 @@ describe('AI', () => {
       gameState.players.find(p => p.playerId === player1Id)!.funds = 0;
       gameState.players.find(p => p.playerId === player2Id)!.properties = 0;
 
-      const hand: Card[] = [
-        { id: 'c1', templateId: 'ACQUIRE' },
-        { id: 'c2', templateId: 'DEFEND' },
-        { id: 'c3', templateId: 'GAIN_FUNDS' },
+      const hand: CardInstance[] = [
+        { uuid: 'c1', templateId: 'ACQUIRE' },
+        { uuid: 'c2', templateId: 'DEFEND' },
+        { uuid: 'c3', templateId: 'GAIN_FUNDS' },
       ];
 
       const weights = calculate_weights(gameState, hand, cardTemplates);
@@ -79,10 +79,10 @@ describe('AI', () => {
       gameState.players.find(p => p.playerId === player1Id)!.funds = 5;
       gameState.players.find(p => p.playerId === player2Id)!.properties = 1;
 
-      const hand: Card[] = [
-        { id: 'c1', templateId: 'ACQUIRE' },
-        { id: 'c2', templateId: 'DEFEND' },
-        { id: 'c3', templateId: 'GAIN_FUNDS' },
+      const hand: CardInstance[] = [
+        { uuid: 'c1', templateId: 'ACQUIRE' },
+        { uuid: 'c2', templateId: 'DEFEND' },
+        { uuid: 'c3', templateId: 'GAIN_FUNDS' },
       ];
 
       const weights = calculate_weights(gameState, hand, cardTemplates);
@@ -94,10 +94,10 @@ describe('AI', () => {
 
   describe('choose_card', () => {
     it('should return an Action based on weights and seed', () => {
-      const hand: Card[] = [
-        { id: 'c1', templateId: 'ACQUIRE' },
-        { id: 'c2', templateId: 'DEFEND' },
-        { id: 'c3', templateId: 'GAIN_FUNDS' },
+      const hand: CardInstance[] = [
+        { uuid: 'c1', templateId: 'ACQUIRE' },
+        { uuid: 'c2', templateId: 'DEFEND' },
+        { uuid: 'c3', templateId: 'GAIN_FUNDS' },
       ];
       const seed = 123;
 
@@ -110,9 +110,9 @@ describe('AI', () => {
     it('should return COLLECT_FUNDS if no cards can be played due to cost', () => {
       gameState.players.find(p => p.playerId === player1Id)!.funds = 0;
 
-      const hand: Card[] = [
-        { id: 'c1', templateId: 'ACQUIRE' },
-        { id: 'c2', templateId: 'FRAUD' },
+      const hand: CardInstance[] = [
+        { uuid: 'c1', templateId: 'ACQUIRE' },
+        { uuid: 'c2', templateId: 'FRAUD' },
       ];
       const seed = 456;
 
@@ -124,9 +124,9 @@ describe('AI', () => {
     it('should return a card if player has enough funds', () => {
       gameState.players.find(p => p.playerId === player1Id)!.funds = 5;
 
-      const hand: Card[] = [
-        { id: 'c1', templateId: 'ACQUIRE' },
-        { id: 'c2', templateId: 'DEFEND' },
+      const hand: CardInstance[] = [
+        { uuid: 'c1', templateId: 'ACQUIRE' },
+        { uuid: 'c2', templateId: 'DEFEND' },
       ];
       const seed = 789;
 
@@ -137,10 +137,10 @@ describe('AI', () => {
     });
 
     it('should return the same card for the same seed and game state', () => {
-      const hand: Card[] = [
-        { id: 'c1', templateId: 'ACQUIRE' },
-        { id: 'c2', templateId: 'DEFEND' },
-        { id: 'c3', templateId: 'GAIN_FUNDS' },
+      const hand: CardInstance[] = [
+        { uuid: 'c1', templateId: 'ACQUIRE' },
+        { uuid: 'c2', templateId: 'DEFEND' },
+        { uuid: 'c3', templateId: 'GAIN_FUNDS' },
       ];
       const seed = 1011;
 

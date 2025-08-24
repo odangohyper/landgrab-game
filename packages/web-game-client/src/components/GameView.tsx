@@ -190,7 +190,7 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
               return;
             }
 
-            if (dbGameState.phase === 'RESOLUTION' && !isResolvingTurnRef.current) {
+            if ((dbGameState.phase === 'RESOLUTION' || dbGameState.phase === 'GAME_OVER') && !isResolvingTurnRef.current) {
               isResolvingTurnRef.current = true;
               console.log('%cWATCH: State is RESOLUTION, starting animation...', 'color: cyan; font-weight: bold;');
 

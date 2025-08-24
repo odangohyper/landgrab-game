@@ -11,7 +11,7 @@ import { GameState, Card, Action, CardTemplate } from '../../types';
  */
 export function calculate_weights(
   gameState: GameState,
-  hand: CardInstance[],
+  hand: Card[],
   cardTemplates: { [templateId: string]: CardTemplate }
 ): Map<string, number> {
   const weights = new Map<string, number>();
@@ -126,7 +126,7 @@ export function calculate_weights(
  */
 export function choose_card(
   gameState: GameState,
-  hand: CardInstance[],
+  hand: Card[],
   seed: number,
   cardTemplates: { [templateId: string]: CardTemplate }
 ): Action | null {
@@ -161,7 +161,7 @@ export function choose_card(
   console.log(`AI: choose_card - Evaluating COLLECT_FUNDS_COMMAND: Weight: ${collectFundsWeight}`);
   if (collectFundsWeight > 0) {
     totalWeight += collectFundsWeight;
-    choices.push({ id: 'COLLECT_FUNDS_COMMAND', type: 'command' });
+    choices.push({ uuid: 'COLLECT_FUNDS_COMMAND', type: 'command' });
     console.log(`AI: choose_card - Added COLLECT_FUNDS_COMMAND to choices. Current totalWeight: ${totalWeight}`);
   }
 
@@ -184,8 +184,8 @@ export function choose_card(
   console.log(`AI: choose_card - Random value for selection: ${randomValue} (out of ${totalWeight})`);
 
   for (const choice of choices) {
-    const weight = weights.get(choice.id || choice.uuid) || 0; // Use choice.id for command, choice.uuid for card
-    console.log(`AI: choose_card - Checking choice ${choice.id || choice.uuid} (Weight: ${weight}). randomValue: ${randomValue}`);
+    const weight = weights.get(choice.uuid) || 0; // Use choice.uuid for both card and command
+    console.log(`AI: choose_card - Checking choice ${choice.uuid} (Weight: ${weight}). randomValue: ${randomValue}`);
     if (randomValue < weight) {
       if (choice.type === 'card') {
         console.log(`AI: choose_card - Selected card: ${choice.uuid}`);
@@ -203,7 +203,7 @@ export function choose_card(
   // Fallback in case of floating point inaccuracies, return the last valid choice
   const lastChoice = choices.pop();
   if(lastChoice) {
-      console.log(`AI: choose_card - Fallback: Returning last choice ${lastChoice.id || lastChoice.uuid}`);
+      console.log(`AI: choose_card - Fallback: Returning last choice ${lastChoice.uuid}`);
       if (lastChoice.type === 'card') {
         return { playerId: npcPlayer.playerId, actionType: 'play_card', cardUuid: lastChoice.uuid };
       } else {

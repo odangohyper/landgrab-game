@@ -2,8 +2,11 @@
 
 // --- Core Game State Interfaces ---
 
+/**
+ * Represents a single, unique instance of a card in the game.
+ */
 export interface Card {
-  id: string; // An instance ID, e.g., "ACQUIRE-12345"
+  uuid: string; // A unique identifier for this specific card instance.
   templateId: string; // The master ID, e.g., "ACQUIRE"
 }
 
@@ -72,6 +75,7 @@ export interface CardTemplate {
     priority: number;      // Higher number resolves first
     target: EffectTarget;
     actions: EffectAction[];
+    conditions?: { [key: string]: any }; // Optional conditions at the effect level
   };
 }
 
@@ -88,4 +92,13 @@ export interface Deck {
   id?: string;
   name: string;
   cards: { [templateId: string]: number }; // e.g., { "ACQUIRE": 2, "DEFEND": 2 }
+}
+
+
+// --- API Response Interfaces ---
+
+export interface DeckApiResponse {
+  id: string;
+  name: string;
+  cards: { [templateId: string]: number };
 }
