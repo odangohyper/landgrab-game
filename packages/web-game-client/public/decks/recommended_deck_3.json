@@ -1,0 +1,9 @@
+{
+  "id": "recommended_3",
+  "name": "防御・妨害型デッキ",
+  "cards": {
+    "DEFEND": 4,
+    "INVEST": 4,
+    "BRIBE": 2
+  }
+}

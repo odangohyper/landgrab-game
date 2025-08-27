@@ -1,0 +1,11 @@
+{
+  "id": "recommended_1",
+  "name": "バランス型デッキ",
+  "cards": {
+    "ACQUIRE": 2,
+    "DEFEND": 2,
+    "FRAUD": 2,
+    "BRIBE": 2,
+    "INVEST": 2
+  }
+}

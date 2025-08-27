@@ -135,3 +135,26 @@ export async function deleteDeck(deckId: string): Promise<void> {
     throw error; // Re-throw the error
   }
 }
+
+export async function fetchRecommendedDecks(): Promise<Deck[]> {
+  const deckFiles = ['recommended_deck_1.json', 'recommended_deck_2.json', 'recommended_deck_3.json'];
+  try {
+    const decks = await Promise.all(
+      deckFiles.map(async (file) => {
+        const response = await fetch(`/decks/${file}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${file}`);
+        }
+        const deck = await response.json();
+        // Add a flag to distinguish recommended decks
+        return { ...deck, isRecommended: true };
+      })
+    );
+    return decks;
+  } catch (error) {
+    console.error('Error fetching recommended decks:', error);
+    return [];
+  }
+}
+
+

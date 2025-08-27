@@ -92,6 +92,7 @@ export interface Deck {
   id?: string;
   name: string;
   cards: { [templateId: string]: number }; // e.g., { "ACQUIRE": 2, "DEFEND": 2 }
+  isRecommended?: boolean;
 }
 
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Deck, CardTemplate } from '../types';
-import { getDecks, createDeck, updateDeck, deleteDeck } from '../api/deckApi';
+import { getDecks, createDeck, updateDeck, deleteDeck, fetchRecommendedDecks } from '../api/deckApi';
 import { fetchCardTemplates } from '../api/realtimeClient';
 import SavedDecksList from './SavedDecksList';
 import DeckEditForm from './DeckEditForm';
@@ -10,7 +10,8 @@ interface DeckBuilderPageProps {
 }
 
 const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect }) => {
-  const [decks, setDecks] = useState<Deck[]>([]);
+  const [userDecks, setUserDecks] = useState<Deck[]>([]);
+  const [recommendedDecks, setRecommendedDecks] = useState<Deck[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
   const [message, setMessage] = useState<string>('');
@@ -34,10 +35,19 @@ const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect }) => {
 
   const loadDecks = useCallback(async () => {
     try {
-      const fetchedDecks = await getDecks();
-      setDecks(fetchedDecks);
-      if (!selectedDeckId && fetchedDecks.length > 0) {
-        setSelectedDeckId(fetchedDecks[0].id!);
+      const [fetchedUserDecks, fetchedRecommendedDecks] = await Promise.all([
+        getDecks(),
+        fetchRecommendedDecks(),
+      ]);
+      setUserDecks(fetchedUserDecks);
+      setRecommendedDecks(fetchedRecommendedDecks);
+
+      if (!selectedDeckId) {
+        if (fetchedUserDecks.length > 0) {
+          setSelectedDeckId(fetchedUserDecks[0].id!);
+        } else if (fetchedRecommendedDecks.length > 0) {
+          setSelectedDeckId(fetchedRecommendedDecks[0].id!);
+        }
       }
     } catch (error: any) {
       console.error("Failed to fetch decks:", error);
@@ -51,7 +61,8 @@ const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect }) => {
 
   const handleSelectDeck = (deckId: string) => {
     setSelectedDeckId(deckId);
-    setMessage(`デッキ '${decks.find(d => d.id === deckId)?.name}' を選択しました！`);
+    const allDecks = [...userDecks, ...recommendedDecks];
+    setMessage(`デッキ '${allDecks.find(d => d.id === deckId)?.name}' を選択しました！`);
   };
 
   const handleEditDeck = (deck: Deck) => {
@@ -132,14 +143,15 @@ const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect }) => {
             </button>
           </div>
           <SavedDecksList
-            decks={decks}
+            userDecks={userDecks}
+            recommendedDecks={recommendedDecks}
             selectedDeckId={selectedDeckId}
             onSelectDeck={handleSelectDeck}
             onEditDeck={handleEditDeck}
             onDeleteDeck={handleDeleteDeck}
             availableCardTemplates={availableCardTemplates}
           />
-          {decks.length === 0 && (
+          {userDecks.length === 0 && recommendedDecks.length === 0 && (
             <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed gray', textAlign: 'center' }}>
               <p>まだデッキがありません。上のボタンから新しいデッキを作成してください。</p>
             </div>

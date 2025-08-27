@@ -14,6 +14,17 @@ import Phaser from 'phaser';
 import { choose_card } from '../game/ai/ai';
 import { getDeck } from '../api/deckApi';
 
+// Import recommended decks directly to bypass fetch issues
+import recommendedDeck1 from '../../public/decks/recommended_deck_1.json';
+import recommendedDeck2 from '../../public/decks/recommended_deck_2.json';
+import recommendedDeck3 from '../../public/decks/recommended_deck_3.json';
+
+const recommendedDecksMap: { [key: string]: Deck } = {
+  'recommended_1': recommendedDeck1,
+  'recommended_2': recommendedDeck2,
+  'recommended_3': recommendedDeck3,
+};
+
 interface GameViewProps {
   selectedDeckId: string | null;
 }
@@ -125,7 +136,15 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
           console.error("handleStartGame: gameRef.current is null, cannot start MainGameScene.");
         }
 
-        const playerDeckPromise = getDeck(selectedDeckIdRef.current);
+        let playerDeckPromise;
+        if (selectedDeckIdRef.current && recommendedDecksMap[selectedDeckIdRef.current]) {
+          console.log(`handleStartGame: Using imported recommended deck: ${selectedDeckIdRef.current}`);
+          playerDeckPromise = Promise.resolve(recommendedDecksMap[selectedDeckIdRef.current]);
+        } else {
+          console.log(`handleStartGame: Fetching user deck from API: ${selectedDeckIdRef.current}`);
+          playerDeckPromise = getDeck(selectedDeckIdRef.current!);
+        }
+
         const npcDeckPromise = fetch('/decks/npc_default_deck.json').then(res => res.json());
 
         const [loadedPlayerDeck, loadedNpcDeck] = await Promise.all([
