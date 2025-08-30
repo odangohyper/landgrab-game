@@ -125,7 +125,7 @@ const SavedDecksList: React.FC<SavedDecksListProps> = ({
 
       {recommendedDecks.length > 0 && (
         <div>
-          <h3 style={{ borderBottom: '2px solid #007bff', paddingBottom: '10px', color: '#007bff' }}>デッキテンプレート</h3>
+          <h3 style={{ borderBottom: '2px solid #007bff', paddingBottom: '10px', color: '#007bff' }}>テンプレートデッキ</h3>
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {recommendedDecks.map((deck) => (
               <DeckCard

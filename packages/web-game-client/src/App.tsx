@@ -7,7 +7,7 @@ import './App.css';
 type View = 'game' | 'deckBuilder';
 
 function App() {
-  const [currentView, setCurrentView] = useState<View>('deckBuilder'); // Default to deck builder
+  const [currentView, setCurrentView] = useState<'game' | 'deckBuilder'>('game');
   const [selectedDeckId, setSelectedDeckId] = useLocalStorage<string | null>('selectedDeckId', null);
 
   const handleDeckSelected = (deckId: string) => {
