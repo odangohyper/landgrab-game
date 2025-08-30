@@ -33,6 +33,9 @@ function App() {
         <button disabled>チュートリアル</button>
         <button disabled>プロローグ</button>
         <button disabled>クレジット</button>
+        <div style={{ marginTop: 'auto', fontSize: '0.75rem', color: '#888' }}>
+          v{__APP_VERSION__}
+        </div>
       </div>
       <div className="game-panel">
         <div className={`view-container ${currentView === 'game' ? 'active' : ''}`}>
