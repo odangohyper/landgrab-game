@@ -1,9 +1,10 @@
 {
   "id": "recommended_2",
-  "name": "攻撃特化型デッキ",
+  "name": "攻撃特化デッキ",
   "cards": {
     "ACQUIRE": 4,
-    "FRAUD": 3,
-    "BRIBE": 3
+    "FRAUD": 1,
+    "BRIBE": 2,
+    "INVEST": 3
   }
 }
