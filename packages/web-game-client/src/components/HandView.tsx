@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Card, CardTemplate, SelectedAction } from '../types';
+import useLongPress from '../hooks/useLongPress';
 
 interface HandViewProps {
   hand: Card[];
@@ -13,13 +14,62 @@ interface HandViewProps {
   onShowCardDetails: (card: CardTemplate) => void;
 }
 
+const CardItem: React.FC<{ 
+  card: Card;
+  isPlayable: boolean;
+  isSelected: boolean;
+  template: CardTemplate;
+  onActionSelect: (action: SelectedAction | null) => void;
+  onShowCardDetails: (card: CardTemplate) => void;
+}> = ({ card, isPlayable, isSelected, template, onActionSelect, onShowCardDetails }) => {
+  
+  const handleLongPress = (e: React.MouseEvent | React.TouchEvent) => {
+    // To prevent the context menu from appearing on some devices
+    if ('preventDefault' in e) {
+        e.preventDefault();
+    }
+    onShowCardDetails(template);
+  };
+
+  const handleClick = () => {
+    if (isSelected) {
+      onActionSelect(null);
+    } else if (isPlayable) {
+      onActionSelect({ type: 'play_card', cardUuid: card.uuid });
+    }
+  };
+
+  const longPressEvents = useLongPress(handleLongPress, handleClick, { delay: 500 });
+
+  const cardClasses = [
+    'card-item',
+    isPlayable ? 'playable' : 'disabled',
+    isSelected ? 'selected' : '',
+    isSelected ? 'no-hover' : '',
+  ].join(' ').trim();
+
+  const imageUrl = template ? `/images/cards/${template.templateId}.jpg` : '';
+
+  return (
+    <div
+      key={card.uuid}
+      className={cardClasses}
+      title={template?.flavorText}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onShowCardDetails(template);
+      }}
+      {...longPressEvents}
+    >
+      {imageUrl && <img src={imageUrl} alt={template?.name} className="card-image" />}
+      <p className="card-name">{template ? `${template.name}：コスト${template.cost}` : card.templateId}</p>
+    </div>
+  );
+};
+
+
 const HandView: React.FC<HandViewProps> = ({ hand, onActionSelect, playableCardUuids, cardTemplates, selectedAction, playerId, onShowCardDetails }) => {
   const currentHand = hand || [];
-
-  const handleContextMenu = (e: React.MouseEvent, card: CardTemplate) => {
-    e.preventDefault();
-    onShowCardDetails(card);
-  };
 
   return (
     <div className="hand-container">
@@ -30,34 +80,19 @@ const HandView: React.FC<HandViewProps> = ({ hand, onActionSelect, playableCardU
           const isPlayable = playableCardUuids.includes(card.uuid);
           const isSelected = selectedAction?.type === 'play_card' && selectedAction.cardUuid === card.uuid;
           const template = cardTemplates[card.templateId];
-          const imageUrl = template ? `/images/cards/${template.templateId}.jpg` : '';
 
-          const cardClasses = [
-            'card-item',
-            isPlayable ? 'playable' : 'disabled',
-            isSelected ? 'selected' : '',
-            isSelected ? 'no-hover' : '',
-          ].join(' ').trim();
-
-          if (!template) return null; // templateがない場合は何も描画しない
+          if (!template) return null;
 
           return (
-            <div
+            <CardItem
               key={card.uuid}
-              className={cardClasses}
-              title={template?.flavorText}
-              onClick={() => {
-                if (isSelected) {
-                  onActionSelect(null);
-                } else if (isPlayable) {
-                  onActionSelect({ type: 'play_card', cardUuid: card.uuid });
-                }
-              }}
-              onContextMenu={(e) => handleContextMenu(e, template)}
-            >
-              {imageUrl && <img src={imageUrl} alt={template?.name} className="card-image" />}
-              <p className="card-name">{template ? `${template.name}：コスト${template.cost}` : card.templateId}</p>
-            </div>
+              card={card}
+              isPlayable={isPlayable}
+              isSelected={isSelected}
+              template={template}
+              onActionSelect={onActionSelect}
+              onShowCardDetails={onShowCardDetails}
+            />
           );
         })
       )}

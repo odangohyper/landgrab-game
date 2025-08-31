@@ -1,5 +1,6 @@
 import React from 'react';
 import { Deck, CardTemplate } from '../types';
+import useLongPress from '../hooks/useLongPress';
 
 interface SavedDecksListProps {
   userDecks: Deck[];
@@ -12,13 +13,40 @@ interface SavedDecksListProps {
   onShowCardDetails: (card: CardTemplate) => void;
 }
 
+const DeckCardEntry: React.FC<{ 
+  cardTemplate: CardTemplate;
+  count: number;
+  onShowCardDetails: (card: CardTemplate) => void;
+}> = ({ cardTemplate, count, onShowCardDetails }) => {
+  
+  const handleLongPress = (e: React.MouseEvent | React.TouchEvent) => {
+    if ('preventDefault' in e) {
+        e.preventDefault();
+    }
+    onShowCardDetails(cardTemplate);
+  };
+
+  const handleClick = () => {}; // Regular click on the text does nothing
+
+  const longPressEvents = useLongPress(handleLongPress, handleClick, { delay: 500 });
+
+  return (
+    <span 
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onShowCardDetails(cardTemplate);
+      }}
+      style={{ cursor: 'context-menu', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+      {...longPressEvents}
+    >
+      {`${cardTemplate.name} (x${count})`}
+    </span>
+  );
+};
+
+
 const DeckCard = ({ deck, selected, onSelect, onEdit, onDelete, cardTemplates, isRecommended = false, onShowCardDetails }: any) => {
   const totalCards = Object.values(deck.cards).reduce((sum: any, count: any) => sum + count, 0);
-
-  const handleContextMenu = (e: React.MouseEvent, card: CardTemplate) => {
-    e.preventDefault();
-    onShowCardDetails(card);
-  };
 
   return (
     <li
@@ -43,14 +71,14 @@ const DeckCard = ({ deck, selected, onSelect, onEdit, onDelete, cardTemplates, i
               return null;
             }
             return (
-              <span 
-                key={cardId}
-                onContextMenu={(e) => handleContextMenu(e, cardTemplate)}
-                style={{ cursor: 'context-menu', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
-              >
-                {`${cardTemplate.name} (x${count})`}
+              <React.Fragment key={cardId}>
+                <DeckCardEntry
+                  cardTemplate={cardTemplate}
+                  count={count as number}
+                  onShowCardDetails={onShowCardDetails}
+                />
                 {index < arr.length - 1 ? ', ' : ''}
-              </span>
+              </React.Fragment>
             );
           })}
         </p>

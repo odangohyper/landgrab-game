@@ -243,14 +243,30 @@ export class MainGameScene extends Phaser.Scene {
         cardContainer.add(cardImage);
       }
 
-      // Make the container interactive for right-click
+      // Make the container interactive for right-click and long press
       cardContainer.setSize(cardWidth, cardHeight);
       cardContainer.setInteractive();
+
+      let pressTimer: Phaser.Time.TimerEvent;
+      
       cardContainer.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
         if (pointer.rightButtonDown()) {
           this.scene.game.events.emit('cardRightClicked', templateId);
+        } else {
+          pressTimer = this.time.delayedCall(500, () => {
+            this.scene.game.events.emit('cardRightClicked', templateId);
+          });
         }
       });
+
+      const cancelTimer = () => {
+        if (pressTimer) {
+          pressTimer.remove();
+        }
+      };
+
+      cardContainer.on('pointerup', cancelTimer);
+      cardContainer.on('pointerout', cancelTimer);
 
       this.tweens.add({
         targets: cardContainer,

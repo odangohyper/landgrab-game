@@ -1,50 +1,71 @@
 .encyclopediaContainer {
-  padding: 2rem;
-  background-color: #f0f2f5;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  color: #f0f0f0;
   height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
 }
 
 .title {
+  color: #00ffff;
   text-align: center;
-  margin-bottom: 2rem;
-  color: #333;
+  margin-top: 0;
+  margin-bottom: 10px;
   font-size: 2.5rem;
 }
 
 .cardGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1.5rem;
+  gap: 15px;
+  padding: 10px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background-color: #3a3a3a;
+  overflow-y: auto;
+  flex-grow: 1;
 }
 
 .cardItem {
+  border: 2px solid #555;
+  border-radius: 10px;
+  padding: 10px;
+  width: 150px;
+  height: 270px; /* Add fixed height */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Change to space-between */
+  align-items: center;
+  background-color: #aea9a9;
   cursor: pointer;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  text-align: center;
-  background-color: #fff;
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .cardItem:hover {
   transform: translateY(-5px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  border-color: #00ffff;
 }
 
 .cardImage {
   width: 100%;
-  height: auto;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
+  height: 240px; /* Add fixed height */
+  object-fit: contain;
+  border-radius: 6px;
+  margin-bottom: 10px;
 }
 
 .cardName {
   font-weight: bold;
-  color: #444;
+  color: #333;
   margin: 0;
+  text-align: center;
 }
 
 /* Modal Content Styles */
@@ -64,6 +85,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  flex-grow: 1;
+  position: relative; /* Set as positioning context */
+  padding-bottom: 5rem; /* Space for the absolute positioned flavor text */
 }
 
 .modalDetails p {
@@ -71,8 +95,13 @@
 }
 
 .flavorText {
-  margin-top: 1rem !important;
+  position: absolute;
+  bottom: 20px;      /* Position at the bottom of the container (respecting parent padding) */
+  left: 0;
+  right: 0;
+  padding-top: 1rem;     /* Add some space above */
   font-size: 0.9rem;
-  color: #666;
-  white-space: pre-wrap; /* To respect newlines in flavor text */
+  color: #aaa;          /* Make it slightly brighter on dark background */
+  white-space: pre-wrap;
+  font-style: italic;    /* Ensure it's italic */
 }
