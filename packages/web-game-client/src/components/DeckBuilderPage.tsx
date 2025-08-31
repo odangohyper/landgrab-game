@@ -7,9 +7,10 @@ import DeckEditForm from './DeckEditForm';
 
 interface DeckBuilderPageProps {
   onDeckSelect: (deckId: string) => void;
+  onShowCardDetails: (card: CardTemplate) => void;
 }
 
-const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect }) => {
+const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect, onShowCardDetails }) => {
   const [userDecks, setUserDecks] = useState<Deck[]>([]);
   const [recommendedDecks, setRecommendedDecks] = useState<Deck[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
@@ -45,8 +46,8 @@ const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect }) => {
       if (!selectedDeckId) {
         if (fetchedUserDecks.length > 0) {
           setSelectedDeckId(fetchedUserDecks[0].id!);
-        } else if (fetchedRecommendedDecks.length > 0) {
-          setSelectedDeckId(fetchedRecommendedDecks[0].id!);
+        } else if (recommendedDecks.length > 0) {
+          setSelectedDeckId(recommendedDecks[0].id!);
         }
       }
     } catch (error: any) {
@@ -127,6 +128,7 @@ const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect }) => {
           availableCardTemplates={availableCardTemplates}
           onSave={handleSaveOrUpdateDeck}
           onCancel={() => setEditingDeck(null)}
+          onShowCardDetails={onShowCardDetails}
         />
       ) : (
         <>
@@ -150,6 +152,7 @@ const DeckBuilderPage: React.FC<DeckBuilderPageProps> = ({ onDeckSelect }) => {
             onEditDeck={handleEditDeck}
             onDeleteDeck={handleDeleteDeck}
             availableCardTemplates={availableCardTemplates}
+            onShowCardDetails={onShowCardDetails}
           />
           {userDecks.length === 0 && recommendedDecks.length === 0 && (
             <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed gray', textAlign: 'center' }}>

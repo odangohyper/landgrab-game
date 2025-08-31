@@ -11,9 +11,10 @@ interface DeckEditFormProps {
   availableCardTemplates: CardTemplate[];
   onSave: (deck: { id?: string; name: string; cards: { [cardId: string]: number } }) => void;
   onCancel: () => void;
+  onShowCardDetails: (card: CardTemplate) => void;
 }
 
-const DeckEditForm: React.FC<DeckEditFormProps> = ({ deck, availableCardTemplates, onSave, onCancel }) => {
+const DeckEditForm: React.FC<DeckEditFormProps> = ({ deck, availableCardTemplates, onSave, onCancel, onShowCardDetails }) => {
   const [deckName, setDeckName] = useState(deck.name);
   const [selectedCards, setSelectedCards] = useState<{ [cardId: string]: number }>(deck.cards);
 
@@ -45,16 +46,13 @@ const DeckEditForm: React.FC<DeckEditFormProps> = ({ deck, availableCardTemplate
       } else {
         newSelectedCards[cardId] = newCount;
       }
-      console.log('selectedCards after update:', newSelectedCards); // ADDED LOG
       return newSelectedCards;
     });
   };
 
   const currentTotalCards = Object.values(selectedCards).reduce((sum, count) => sum + count, 0);
-  console.log('currentTotalCards:', currentTotalCards); // ADDED LOG
 
   const handleSave = () => {
-    console.log('handleSave called. currentTotalCards:', currentTotalCards); // ADDED LOG
     if (!deckName.trim()) {
       alert('デッキ名を入力してください。');
       return;
@@ -63,8 +61,12 @@ const DeckEditForm: React.FC<DeckEditFormProps> = ({ deck, availableCardTemplate
       alert(`デッキは10枚である必要があります。現在: ${currentTotalCards}枚`);
       return;
     }
-    console.log('Calling onSave with:', { ...deck, name: deckName, cards: selectedCards }); // ADDED LOG
     onSave({ ...deck, name: deckName, cards: selectedCards });
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, card: CardTemplate) => {
+    e.preventDefault();
+    onShowCardDetails(card);
   };
 
   return (
@@ -84,7 +86,11 @@ const DeckEditForm: React.FC<DeckEditFormProps> = ({ deck, availableCardTemplate
       <h3>カード選択 ({currentTotalCards}/10)</h3>
       <div className={styles['card-selection-grid']}>
         {availableCardTemplates.map(card => (
-          <div key={card.templateId} className={styles['card-item']}>
+          <div 
+            key={card.templateId} 
+            className={styles['card-item']}
+            onContextMenu={(e) => handleContextMenu(e, card)}
+          >
             <img src={`/images/cards/${card.templateId}.jpg`} alt={card.name} className={styles['card-image']} />
             <div className={styles['card-controls']}>
               <span>{card.name} ({selectedCards[card.templateId] || 0})</span>

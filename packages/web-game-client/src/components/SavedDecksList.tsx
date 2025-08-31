@@ -9,10 +9,16 @@ interface SavedDecksListProps {
   onEditDeck: (deck: Deck) => void;
   onDeleteDeck: (deckId: string) => void;
   availableCardTemplates: CardTemplate[];
+  onShowCardDetails: (card: CardTemplate) => void;
 }
 
-const DeckCard = ({ deck, selected, onSelect, onEdit, onDelete, cardTemplates, isRecommended = false }: any) => {
+const DeckCard = ({ deck, selected, onSelect, onEdit, onDelete, cardTemplates, isRecommended = false, onShowCardDetails }: any) => {
   const totalCards = Object.values(deck.cards).reduce((sum: any, count: any) => sum + count, 0);
+
+  const handleContextMenu = (e: React.MouseEvent, card: CardTemplate) => {
+    e.preventDefault();
+    onShowCardDetails(card);
+  };
 
   return (
     <li
@@ -31,11 +37,22 @@ const DeckCard = ({ deck, selected, onSelect, onEdit, onDelete, cardTemplates, i
       <div>
         <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>{deck.name} ({totalCards}枚)</h4>
         <p style={{ fontSize: '0.9em', color: '#555', margin: 0 }}>
-          {Object.entries(deck.cards).map(([cardId, count]) => {
+          {Object.entries(deck.cards).map(([cardId, count], index, arr) => {
             const cardTemplate = cardTemplates.find((t: any) => t.templateId === cardId);
-            const cardName = cardTemplate ? cardTemplate.name : cardId;
-            return `${cardName} (x${count})`;
-          }).join(', ')}
+            if (!cardTemplate) {
+              return null;
+            }
+            return (
+              <span 
+                key={cardId}
+                onContextMenu={(e) => handleContextMenu(e, cardTemplate)}
+                style={{ cursor: 'context-menu', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+              >
+                {`${cardTemplate.name} (x${count})`}
+                {index < arr.length - 1 ? ', ' : ''}
+              </span>
+            );
+          })}
         </p>
       </div>
       <div style={{ display: 'flex', gap: '10px' }}>
@@ -96,6 +113,7 @@ const SavedDecksList: React.FC<SavedDecksListProps> = ({
   onEditDeck,
   onDeleteDeck,
   availableCardTemplates,
+  onShowCardDetails,
 }) => {
   if (userDecks.length === 0 && recommendedDecks.length === 0) {
     return null; // Let parent component handle this case
@@ -117,6 +135,7 @@ const SavedDecksList: React.FC<SavedDecksListProps> = ({
                 onDelete={onDeleteDeck}
                 cardTemplates={availableCardTemplates}
                 isRecommended={false}
+                onShowCardDetails={onShowCardDetails}
               />
             ))}
           </ul>
@@ -135,6 +154,7 @@ const SavedDecksList: React.FC<SavedDecksListProps> = ({
                 onSelect={onSelectDeck}
                 cardTemplates={availableCardTemplates}
                 isRecommended={true}
+                onShowCardDetails={onShowCardDetails}
               />
             ))}
           </ul>

@@ -221,18 +221,17 @@ export class MainGameScene extends Phaser.Scene {
 
       if (existingCardContainer) {
         cardContainer = existingCardContainer;
-        // 既存のコンテナ内の画像と縁取りを更新
-        cardImage = cardContainer.getAt(1) as Phaser.GameObjects.Image; // 画像は2番目の子要素
-        border = cardContainer.getAt(0) as Phaser.GameObjects.Graphics; // 縁取りは1番目の子要素
-        cardContainer.setAlpha(1); // 既に表示されているのでalphaは1
-        cardContainer.setScale(1); // スケールをリセット
+        cardImage = cardContainer.getAt(1) as Phaser.GameObjects.Image;
+        border = cardContainer.getAt(0) as Phaser.GameObjects.Graphics;
+        cardContainer.setAlpha(1);
+        cardContainer.setScale(1);
         cardContainer.setX(targetX);
         cardContainer.setY(targetY);
         border.lineStyle(borderWidth, borderColor, 1);
         border.strokeRect(-cardWidth / 2, -cardHeight / 2, cardWidth, cardHeight);
       } else {
         cardContainer = this.add.container(targetX, targetY);
-        cardContainer.setAlpha(0); // 新規作成なのでalphaは0
+        cardContainer.setAlpha(0);
 
         border = this.add.graphics();
         border.lineStyle(borderWidth, borderColor, 1);
@@ -243,6 +242,15 @@ export class MainGameScene extends Phaser.Scene {
           .setDisplaySize(cardWidth, cardHeight);
         cardContainer.add(cardImage);
       }
+
+      // Make the container interactive for right-click
+      cardContainer.setSize(cardWidth, cardHeight);
+      cardContainer.setInteractive();
+      cardContainer.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.rightButtonDown()) {
+          this.scene.game.events.emit('cardRightClicked', templateId);
+        }
+      });
 
       this.tweens.add({
         targets: cardContainer,

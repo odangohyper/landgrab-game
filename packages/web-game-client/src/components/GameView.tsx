@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameEngine } from '../game/engine';
 import { MainGameScene } from '../game/scenes/MainGameScene';
-import { GameState, PlayerState, CardInstance, Action, CardTemplate, Deck, SelectedAction } from '../types';
+import { GameState, PlayerState, Card, CardTemplate, Deck, SelectedAction } from '../types';
 import HandView from './HandView';
 import DeckInfo from './DeckInfo';
 import Modal from './Modal';
@@ -27,15 +27,16 @@ const recommendedDecksMap: { [key: string]: Deck } = {
 
 interface GameViewProps {
   selectedDeckId: string | null;
+  onShowCardDetails: (card: CardTemplate) => void;
 }
 
 const MAX_STACK_IMAGES = 6;
 const STACK_OFFSET_X = 2;
 const STACK_OFFSET_Y = 2;
 
-const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
+const GameView: React.FC<GameViewProps> = ({ selectedDeckId, onShowCardDetails }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [playerHand, setPlayerHand] = useState<CardInstance[]>([]);
+  const [playerHand, setPlayerHand] = useState<Card[]>([]);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [opponentId, setOpponentId] = useState<string | null>(null);
@@ -273,6 +274,25 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
     }
   }, []);
 
+  // Effect for setting up Phaser event listeners that depend on dynamic data
+  useEffect(() => {
+    const game = gameRef.current;
+    if (game && Object.keys(cardTemplates).length > 0) {
+      const handleCardRightClick = (cardTemplateId: string) => {
+        const cardTemplate = cardTemplates[cardTemplateId];
+        if (cardTemplate) {
+          onShowCardDetails(cardTemplate);
+        }
+      };
+
+      game.events.on('cardRightClicked', handleCardRightClick);
+
+      return () => {
+        game.events.off('cardRightClicked', handleCardRightClick);
+      };
+    }
+  }, [cardTemplates, onShowCardDetails]);
+
   const handleActionSelect = (action: SelectedAction | null) => {
     setSelectedAction(action);
     const mainGameScene = gameRef.current?.scene.getScene('MainGameScene') as MainGameScene;
@@ -457,11 +477,12 @@ const GameView: React.FC<GameViewProps> = ({ selectedDeckId }) => {
             </div>
             <HandView
               hand={playerHand}
-              onActionSelect={handleActionSelect} // Corrected prop name
-              playableCardUuids={playableCardUuids} // Corrected prop name
+              onActionSelect={handleActionSelect}
+              playableCardUuids={playableCardUuids}
               cardTemplates={cardTemplates}
-              selectedAction={selectedAction} // Corrected prop name
+              selectedAction={selectedAction}
               playerId={clientId || ''}
+              onShowCardDetails={onShowCardDetails}
             />
             <div className="action-bar">
               <div
